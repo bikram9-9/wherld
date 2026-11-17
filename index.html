@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wherld</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a detective's night desk. The lit globe is the hero on the left;
+   the paper case file (clues, redacted until earned) sits on the right. One theme by choice. */
+:root {
+  color-scheme: dark;
+  --ink: #0e1a25;          /* desk */
+  --panel: #152634;        /* raised surfaces */
+  --line: #2a4155;         /* hairlines */
+  --text: #e6ecf1;
+  --muted: #8ea3b5;
+  --paper: #ebe2cc;        /* case file */
+  --paper-ink: #1c2733;
+  --paper-line: #cdbf9f;
+  --amber: #f2a23a;        /* accent: desk lamp */
+  --hot: #e2502e;
+  --cold: #7fb4d6;
+  --solved: #3fae6b;
+  --font-display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.45;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.wrap { max-width: 1280px; margin: 0 auto; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 14px; }
+
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+.brand h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(26px, 4vw, 36px); line-height: 1; margin: 0; letter-spacing: -0.02em; }
+.brand h1 span { color: var(--amber); }
+.brand p { margin: 4px 0 0; color: var(--muted); font-size: 13px; max-width: 64ch; }
+@media (max-width: 820px) { .brand p { display: none; } }
+.controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--panel); }
+.seg button { border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; font-size: 14px; font-weight: 500; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--amber); color: #1b1304; }
+.streak { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.streak b { color: var(--text); font-weight: 600; }
+
+main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr); gap: 28px; align-items: start; }
+
+/* Globe column */
+.globe-col { display: flex; flex-direction: column; gap: 10px; }
+.guessbar { display: flex; flex-direction: column; gap: 6px; }
+.globe-box { position: relative; width: 100%; max-width: min(560px, max(230px, 100dvh - 215px)); margin: 0 auto; aspect-ratio: 1; }
+@media (max-width: 820px) { .globe-box { max-width: min(100%, max(220px, 46dvh)); } }
+#globe { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; border-radius: 50%; }
+#globe.dragging { cursor: grabbing; }
+.toast { position: absolute; top: 6px; left: 50%; z-index: 3; transform: translate(-50%, -8px); opacity: 0; pointer-events: none; white-space: nowrap; font-family: var(--font-display); font-weight: 800; font-size: 18px; padding: 6px 16px; border-radius: 999px; background: var(--panel); color: var(--text); border: 2px solid var(--line); box-shadow: 0 10px 24px rgba(0,0,0,0.45); transition: opacity 0.25s, transform 0.25s; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.warmer { background: #c20d1a; border-color: #ffb199; color: #fff; }
+.toast.colder { background: #0a2a8f; border-color: #a9cbff; color: #fff; }
+.toast.same { background: var(--panel); border-color: var(--muted); color: var(--text); }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+.zoom { position: absolute; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 6px; }
+.zoom button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); font-size: 20px; line-height: 1; }
+.zoom button:hover { border-color: var(--amber); }
+.legend { position: absolute; left: 0; bottom: 4px; display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.legend i { display: block; width: 84px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #0a2a8f, #9fc3ff 50%, #ffada3 50%, #c20d1a); }
+
+.guess-form { position: relative; display: flex; gap: 8px; max-width: 560px; width: 100%; margin: 0 auto; }
+.guess-form input { flex: 1; min-width: 0; font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.guess-form input::placeholder { color: var(--muted); }
+.guess-form input:focus { outline: none; border-color: var(--amber); }
+.guess-form button { border: 0; border-radius: 10px; padding: 0 20px; background: var(--amber); color: #1b1304; font-weight: 600; }
+.guess-form button:disabled, .guess-form input:disabled { opacity: 0.5; cursor: not-allowed; }
+#suggest { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5; margin: 0; padding: 4px; list-style: none; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; max-height: 240px; overflow-y: auto; box-shadow: 0 12px 30px rgba(0,0,0,0.45); }
+#suggest[hidden] { display: none; }
+#suggest li { padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+#suggest li[aria-selected="true"], #suggest li:hover { background: #20384b; }
+#suggest li.used { color: var(--muted); text-decoration: line-through; }
+.msg { min-height: 1.4em; margin: 0 auto; max-width: 560px; width: 100%; font-size: 14px; color: var(--text); }
+.msg b { color: var(--amber); font-weight: 600; }
+
+/* Case file */
+.file-col { display: flex; flex-direction: column; gap: 14px; }
+.casefile { position: relative; background: var(--paper); color: var(--paper-ink); border-radius: 4px 14px 4px 4px; padding: 10px 14px 2px; box-shadow: 0 18px 40px rgba(0,0,0,0.4); }
+.casefile::before { content: ""; position: absolute; top: -10px; left: 18px; width: 120px; height: 12px; background: var(--paper); border-radius: 6px 6px 0 0; }
+.cf-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-bottom: 6px; border-bottom: 2px solid var(--paper-ink); }
+.cf-head h2 { font-family: var(--font-display); font-weight: 800; font-size: 16px; margin: 0; letter-spacing: -0.01em; }
+.cf-head span { font-family: var(--font-mono); font-size: 12px; }
+.clues { list-style: none; margin: 0; padding: 0; }
+.clues li { display: grid; grid-template-columns: 20px 100px minmax(0, 1fr); gap: 8px; align-items: center; min-height: 30px; padding: 4px 0; border-bottom: 1px dashed var(--paper-line); }
+.clues li:last-child { border-bottom: 0; }
+.clues .n { font-family: var(--font-mono); font-size: 11px; font-weight: 600; width: 18px; height: 18px; border: 1.5px solid var(--paper-ink); border-radius: 50%; display: grid; place-items: center; }
+.clues .k { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+.clues .v { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.locknote { display: none; margin: 0; padding: 6px 0 8px; font-family: var(--font-mono); font-size: 12px; opacity: 0.75; }
+@media (max-width: 820px) { .locknote:not([hidden]) { display: block; } }
+.clues li.locked .n, .clues li.locked .k { opacity: 0.55; }
+.redact { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.redact i { display: block; height: 12px; background: var(--paper-ink); border-radius: 2px; }
+.redact small { font-family: var(--font-mono); font-size: 11px; opacity: 0.7; }
+.clues li.fresh .v { animation: reveal 0.5s ease-out; }
+@keyframes reveal { from { background: var(--paper-ink); color: transparent; } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .clues li.fresh .v { animation: none; } }
+.swatches { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.swatches span { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; }
+.swatches i { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--paper-ink); }
+#shape { width: 92px; height: 62px; display: block; }
+@media (max-width: 440px) { .clues li { grid-template-columns: 20px 92px minmax(0, 1fr); gap: 8px; } .clues .k { font-size: 11px; letter-spacing: 0.02em; } }
+
+.verdict { margin: 2px 0 8px; padding: 10px 0 4px; border-top: 2px solid var(--paper-ink); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.verdict #scoreline, .verdict .row, .verdict #sharebox { flex-basis: 100%; }
+.verdict[hidden] { display: none; }
+.stamp { font-family: var(--font-display); font-weight: 800; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 12px; border: 3px solid currentColor; border-radius: 6px; transform: rotate(-3deg); }
+.stamp.win { color: #1f7a45; }
+.stamp.loss { color: #b23a20; }
+.verdict p { margin: 0; }
+.verdict .ans { font-family: var(--font-display); font-weight: 800; font-size: 20px; line-height: 1.1; }
+.verdict .row { display: flex; flex-wrap: wrap; gap: 8px; }
+.verdict button { border: 1.5px solid var(--paper-ink); background: transparent; color: var(--paper-ink); border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: 14px; }
+.verdict button.primary { background: var(--paper-ink); color: var(--paper); }
+#sharebox { width: 100%; font-family: var(--font-mono); font-size: 13px; background: #f6f0e0; color: var(--paper-ink); border: 1px solid var(--paper-line); border-radius: 6px; padding: 8px; resize: none; }
+#sharebox[hidden] { display: none; }
+
+.guesses h3 { font-family: var(--font-mono); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 6px; display: flex; justify-content: space-between; }
+.guesses ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.guesses li button { display: inline-flex; gap: 8px; align-items: center; text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px 5px 8px; font-size: 14px; }
+.guesses li button:hover { border-color: var(--muted); }
+.guesses .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.guesses .nm { font-weight: 500; }
+.guesses .ds { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.guesses .ar { font-size: 15px; }
+.guesses .empty { color: var(--muted); font-size: 13px; }
+
+/* Stage: the globe owns the screen; the case file and guess list float in its empty corners */
+main.stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.guessbar { width: 100%; max-width: 520px; }
+.globe-box { max-width: min(100%, max(260px, 100dvh - 212px)); }
+.casefile { position: absolute; top: 14px; right: 0; z-index: 4; width: 246px; min-height: 246px; transform: rotate(1.4deg); border-radius: 3px 12px 3px 3px; box-shadow: 5px 5px 0 -1px #cdbf9f, 9px 9px 0 -2px #b9aa87, 0 20px 40px rgba(0,0,0,0.5); }
+.casefile::before { width: 96px; left: 12px; }
+.clues li { grid-template-columns: 18px 72px minmax(0, 1fr); gap: 7px; }
+.clues .k { font-size: 10px; letter-spacing: 0.03em; }
+.clues .v { font-size: 13px; line-height: 1.25; }
+.redact small { display: none; }
+.guesses { position: absolute; top: 4px; left: 0; z-index: 4; width: 220px; }
+.guesses ol { flex-direction: column; align-items: flex-start; }
+.guessbar { max-width: 340px; gap: 4px; }
+.guess-form input { padding: 7px 12px; font-size: 14px; border-radius: 8px; }
+.guess-form button { padding: 0 14px; font-size: 14px; border-radius: 8px; }
+.msg { font-size: 13px; text-align: center; }
+@media (max-width: 900px) {
+  .guessbar { position: sticky; top: 0; z-index: 6; max-width: none; background: var(--ink); padding: 8px 0 4px; box-shadow: 0 12px 16px -8px var(--ink); }
+  .globe-box { max-width: min(100%, max(240px, 62dvh)); }
+  .guesses { position: static; }
+  .casefile { position: relative; top: 0; }
+  .casefile, .guesses { transform: none; width: 100%; max-width: 440px; min-height: 0; }
+  .casefile { margin-top: 14px; }
+  .guesses ol { flex-direction: row; }
+  .clues li.locked { display: none; }
+  .locknote:not([hidden]) { display: block; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Wher<span>ld</span></h1>
+      <p>Where in the world? One mystery country, six guesses. Every miss unlocks a new clue and colors the globe by how close you were.</p>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Game mode">
+        <button type="button" id="mode-daily" aria-pressed="true">Daily case</button>
+        <button type="button" id="mode-practice" aria-pressed="false">Practice</button>
+      </div>
+      <div class="streak" id="streak"></div>
+    </div>
+  </header>
+
+  <main class="stage">
+      <div class="guessbar">
+      <form class="guess-form" id="form" autocomplete="off">
+        <input id="guess" type="text" placeholder="Type a country" aria-label="Guess a country" role="combobox" aria-expanded="false" aria-controls="suggest" aria-autocomplete="list" spellcheck="false">
+        <button type="submit" id="go">Guess</button>
+        <ul id="suggest" role="listbox" hidden></ul>
+      </form>
+      <p class="msg" id="msg" role="status" aria-live="polite"></p>
+      </div>
+      <div class="globe-box">
+        <div class="toast" id="toast" aria-hidden="true"></div>
+        <canvas id="globe" aria-label="Globe. Drag to spin. Guessed countries are colored by distance from the answer."></canvas>
+        <div class="legend"><span>far</span><i></i><span>close</span></div>
+        <div class="zoom">
+          <button type="button" id="zin" aria-label="Zoom in">+</button>
+          <button type="button" id="zout" aria-label="Zoom out">&minus;</button>
+        </div>
+      </div>
+      <div class="casefile">
+        <div class="cf-head"><h2>Case file</h2><span id="caseno"></span></div>
+        <ol class="clues" id="clues"></ol>
+        <p class="locknote" id="locknote"></p>
+        <div class="verdict" id="verdict" hidden>
+          <div class="stamp" id="stamp"></div>
+          <p class="ans" id="ans"></p>
+          <p id="scoreline"></p>
+          <div class="row">
+            <button type="button" class="primary" id="copy">Copy result</button>
+            <button type="button" id="again">Play a practice round</button>
+          </div>
+          <textarea id="sharebox" rows="3" readonly hidden aria-label="Your result, ready to copy"></textarea>
+        </div>
+      </div>
+      <div class="guesses">
+        <h3><span>Your guesses</span><span id="left"></span></h3>
+        <ol id="glist"></ol>
+      </div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+"use strict";
+/* ---------- Clue data: id -> [population bucket, continent, main language, famous dish, flag colors] ---------- */
+const POP = { a: "Under 1 million", b: "1 to 5 million", c: "5 to 10 million", d: "10 to 20 million", e: "20 to 50 million", f: "50 to 100 million", g: "100 to 200 million", h: "Over 200 million" };
+const NA = "North America", SA = "South America", EU = "Europe", AS = "Asia", AF = "Africa", OC = "Oceania";
+const CASES = {
+  "840": ["h", NA, "English", "Apple pie", "red white blue"],
+  "124": ["e", NA, "English", "Poutine", "red white"],
+  "484": ["g", NA, "Spanish", "Mole poblano", "green white red"],
+  "320": ["d", NA, "Spanish", "Pepián", "lightblue white"],
+  "388": ["b", NA, "English", "Ackee and saltfish", "green yellow black"],
+  "332": ["d", NA, "Haitian Creole", "Griot (fried pork)", "blue red"],
+  "214": ["d", NA, "Spanish", "Mangú", "blue red white"],
+  "188": ["c", NA, "Spanish", "Gallo pinto", "blue white red"],
+  "591": ["b", NA, "Spanish", "Sancocho", "red white blue"],
+  "340": ["d", NA, "Spanish", "Baleada", "blue white"],
+  "222": ["c", NA, "Spanish", "Pupusas", "blue white"],
+  "558": ["c", NA, "Spanish", "Nacatamal", "blue white"],
+  "076": ["h", SA, "Portuguese", "Feijoada", "green yellow blue white"],
+  "032": ["e", SA, "Spanish", "Asado", "lightblue white yellow"],
+  "152": ["d", SA, "Spanish", "Pastel de choclo", "red white blue"],
+  "604": ["e", SA, "Spanish", "Ceviche", "red white"],
+  "170": ["f", SA, "Spanish", "Bandeja paisa", "yellow blue red"],
+  "862": ["e", SA, "Spanish", "Pabellón criollo", "yellow blue red white"],
+  "218": ["d", SA, "Spanish", "Encebollado", "yellow blue red"],
+  "068": ["d", SA, "Spanish", "Salteñas", "red yellow green"],
+  "600": ["c", SA, "Spanish and Guaraní", "Sopa paraguaya", "red white blue"],
+  "858": ["b", SA, "Spanish", "Chivito", "white blue yellow"],
+  "826": ["f", EU, "English", "Fish and chips", "red white blue"],
+  "372": ["c", EU, "English", "Irish stew", "green white orange"],
+  "250": ["f", EU, "French", "Boeuf bourguignon", "blue white red"],
+  "724": ["e", EU, "Spanish", "Paella", "red yellow"],
+  "620": ["d", EU, "Portuguese", "Bacalhau", "green red yellow"],
+  "276": ["f", EU, "German", "Sauerbraten", "black red yellow"],
+  "380": ["f", EU, "Italian", "Pasta al ragù", "green white red"],
+  "528": ["d", EU, "Dutch", "Stamppot", "red white blue"],
+  "056": ["d", EU, "Dutch and French", "Moules-frites", "black yellow red"],
+  "756": ["c", EU, "German", "Fondue", "red white"],
+  "040": ["c", EU, "German", "Wiener schnitzel", "red white"],
+  "616": ["e", EU, "Polish", "Pierogi", "white red"],
+  "203": ["d", EU, "Czech", "Svíčková", "white red blue"],
+  "348": ["c", EU, "Hungarian", "Goulash", "red white green"],
+  "642": ["d", EU, "Romanian", "Sarmale", "blue yellow red"],
+  "100": ["c", EU, "Bulgarian", "Banitsa", "white green red"],
+  "300": ["d", EU, "Greek", "Moussaka", "blue white"],
+  "752": ["d", EU, "Swedish", "Köttbullar (meatballs)", "blue yellow"],
+  "578": ["c", EU, "Norwegian", "Fårikål", "red white blue"],
+  "246": ["c", EU, "Finnish", "Karelian pasties", "white blue"],
+  "208": ["c", EU, "Danish", "Smørrebrød", "red white"],
+  "352": ["a", EU, "Icelandic", "Hákarl (fermented shark)", "blue white red"],
+  "804": ["e", EU, "Ukrainian", "Borscht", "blue yellow"],
+  "643": ["g", "Europe and Asia", "Russian", "Pelmeni", "white blue red"],
+  "792": ["f", "Asia and Europe", "Turkish", "Döner kebab", "red white"],
+  "191": ["b", EU, "Croatian", "Peka", "red white blue"],
+  "688": ["c", EU, "Serbian", "Ćevapi", "red blue white"],
+  "008": ["b", EU, "Albanian", "Tavë kosi", "red black"],
+  "440": ["b", EU, "Lithuanian", "Cepelinai", "yellow green red"],
+  "233": ["b", EU, "Estonian", "Verivorst (blood sausage)", "blue black white"],
+  "156": ["h", AS, "Mandarin Chinese", "Peking duck", "red yellow"],
+  "356": ["h", AS, "Hindi", "Biryani", "orange white green"],
+  "586": ["h", AS, "Urdu", "Nihari", "green white"],
+  "050": ["g", AS, "Bengali", "Hilsa fish curry", "green red"],
+  "392": ["g", AS, "Japanese", "Sushi", "white red"],
+  "410": ["f", AS, "Korean", "Kimchi", "white red blue black"],
+  "408": ["e", AS, "Korean", "Naengmyeon (cold noodles)", "red white blue"],
+  "496": ["b", AS, "Mongolian", "Buuz (steamed dumplings)", "red blue yellow"],
+  "704": ["g", AS, "Vietnamese", "Phở", "red yellow"],
+  "764": ["f", AS, "Thai", "Pad thai", "red white blue"],
+  "116": ["d", AS, "Khmer", "Fish amok", "blue red white"],
+  "418": ["c", AS, "Lao", "Larb", "red blue white"],
+  "104": ["f", AS, "Burmese", "Mohinga", "yellow green red white"],
+  "458": ["e", AS, "Malay", "Nasi lemak", "red white blue yellow"],
+  "360": ["h", AS, "Indonesian", "Nasi goreng", "red white"],
+  "608": ["g", AS, "Filipino", "Adobo", "blue red white yellow"],
+  "524": ["e", AS, "Nepali", "Dal bhat", "red blue white"],
+  "144": ["e", AS, "Sinhala", "Kottu roti", "maroon yellow green orange"],
+  "364": ["f", AS, "Persian", "Chelo kebab", "green white red"],
+  "368": ["e", AS, "Arabic", "Masgouf (grilled carp)", "red white black green"],
+  "682": ["e", AS, "Arabic", "Kabsa", "green white"],
+  "400": ["d", AS, "Arabic", "Mansaf", "black white green red"],
+  "422": ["c", AS, "Arabic", "Kibbeh", "red white green"],
+  "398": ["e", AS, "Kazakh", "Beshbarmak", "lightblue yellow"],
+  "860": ["e", AS, "Uzbek", "Plov", "blue white green red"],
+  "268": ["b", AS, "Georgian", "Khachapuri", "white red"],
+  "051": ["b", AS, "Armenian", "Khorovats", "red blue orange"],
+  "818": ["g", AF, "Arabic", "Koshari", "red white black"],
+  "504": ["e", AF, "Arabic", "Tagine", "red green"],
+  "012": ["e", AF, "Arabic", "Couscous", "green white red"],
+  "788": ["d", AF, "Arabic", "Brik", "red white"],
+  "566": ["h", AF, "English", "Jollof rice", "green white"],
+  "288": ["e", AF, "English", "Fufu with light soup", "red yellow green black"],
+  "686": ["d", AF, "French", "Thieboudienne", "green yellow red"],
+  "231": ["g", AF, "Amharic", "Doro wat with injera", "green yellow red blue"],
+  "404": ["f", AF, "Swahili", "Nyama choma", "black red green white"],
+  "834": ["f", AF, "Swahili", "Ugali", "green yellow black blue"],
+  "710": ["f", AF, "Zulu", "Bobotie", "red white blue green black yellow"],
+  "716": ["d", AF, "Shona", "Sadza", "green yellow red black white"],
+  "516": ["b", AF, "English (official)", "Kapana (grilled beef)", "blue red green white yellow"],
+  "072": ["b", AF, "Setswana", "Seswaa", "lightblue black white"],
+  "450": ["e", AF, "Malagasy", "Romazava", "white red green"],
+  "508": ["e", AF, "Portuguese", "Piri-piri chicken", "green black yellow white red"],
+  "024": ["e", AF, "Portuguese", "Muamba de galinha", "red black yellow"],
+  "180": ["g", AF, "French", "Poulet à la moambe", "lightblue red yellow"],
+  "120": ["e", AF, "French", "Ndolé", "green red yellow"],
+  "384": ["e", AF, "French", "Attiéké", "orange white green"],
+  "466": ["e", AF, "Bambara", "Tiguadèguèna (peanut stew)", "green yellow red"],
+  "646": ["d", AF, "Kinyarwanda", "Isombe", "blue yellow green"],
+  "434": ["c", AF, "Arabic", "Bazin", "red black green white"],
+  "036": ["e", OC, "English", "Meat pie", "blue white red"],
+  "554": ["c", OC, "English", "Hāngī", "blue red white"],
+  "242": ["a", OC, "English and Fijian", "Kokoda (fish in coconut milk)", "lightblue red white blue"]
+};
+const SWATCH = { red: "#c8102e", white: "#ffffff", blue: "#1f4fa3", green: "#1e8a4c", yellow: "#f6c915", black: "#111111", orange: "#f08a24", lightblue: "#6fb7e6", maroon: "#7b1f2b" };
+const SWATCH_NAME = { lightblue: "light blue" };
+const RENAME = { "W. Sahara": "Western Sahara", "Dem. Rep. Congo": "DR Congo", "Dominican Rep.": "Dominican Republic", "Falkland Is.": "Falkland Islands", "Central African Rep.": "Central African Republic", "Eq. Guinea": "Equatorial Guinea", "eSwatini": "Eswatini", "Solomon Is.": "Solomon Islands", "Bosnia and Herz.": "Bosnia and Herzegovina", "Macedonia": "North Macedonia", "S. Sudan": "South Sudan", "N. Cyprus": "Northern Cyprus", "United States of America": "United States", "Congo": "Republic of the Congo" };
+const ALIAS = { "840": "usa us america", "826": "uk britain great britain england scotland wales", "180": "democratic republic of the congo drc congo kinshasa", "178": "congo brazzaville", "384": "ivory coast", "203": "czech republic", "792": "turkiye", "104": "burma", "748": "swaziland", "784": "uae emirates", "410": "korea republic", "408": "dprk", "528": "holland", "626": "east timor", "807": "macedonia" };
+const SKIP = new Set(["010", "260"]);
+const MAX_GUESSES = 6;
+const CLUE_LABELS = ["Population", "Continent", "Main language", "Famous dish", "Flag colors", "Outline"];
+const EPOCH = new Date(2026, 10, 16); // daily case #1
+
+/* ---------- Helpers ---------- */
+const $ = (id) => document.getElementById(id);
+const norm = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } }
+};
+function mulberry(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const todayIndex = () => { const n = new Date(); return Math.round((new Date(n.getFullYear(), n.getMonth(), n.getDate()) - EPOCH) / 864e5); };
+const coldRamp = d3.interpolateRgb("#0a2a8f", "#9fc3ff"), warmRamp = d3.interpolateRgb("#ffada3", "#c20d1a");
+const heat = (t) => t < 0.5 ? coldRamp(t * 2) : warmRamp((t - 0.5) * 2);
+const heatFor = (mi) => heat(1 - Math.min(mi, 8000) / 8000);
+const ARROWS = ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"];
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+let countries = [];           // {key, name, feature, center, search}
+let byKey = new Map();
+let answerPool = [];
+let state = null;             // {mode, day, answer, guesses:[keys], fresh}
+
+/* ---------- Globe ---------- */
+const canvas = $("globe"), ctx = canvas.getContext("2d");
+const projection = d3.geoOrthographic().clipAngle(90).precision(0.6);
+const path = d3.geoPath(projection, ctx);
+const graticule = d3.geoGraticule10();
+let landGeo = null, borderGeo = null, dirty = false;
+let size = 0, zoom = 1, spinning = !reduceMotion, flyTimer = null, pulseKey = null, pulseStart = 0;
+projection.rotate([20, -18]);
+
+function resize() {
+  const r = canvas.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+  size = r.width;
+  canvas.width = Math.round(size * dpr); canvas.height = Math.round(size * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  projection.translate([size / 2, size / 2]).scale((size / 2 - 14) * zoom);
+  draw();
+}
+function draw() {
+  if (!size) return;
+  ctx.clearRect(0, 0, size, size);
+  const R = projection.scale(), c = size / 2;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(c, c, size / 2, 0, Math.PI * 2); ctx.clip();
+  // ocean with lamp-lit falloff
+  const g = ctx.createRadialGradient(c - R * 0.35, c - R * 0.4, R * 0.1, c, c, R);
+  g.addColorStop(0, "#2c5a78"); g.addColorStop(1, "#16303f");
+  ctx.beginPath(); path({ type: "Sphere" }); ctx.fillStyle = g; ctx.fill();
+  ctx.beginPath(); path(graticule); ctx.strokeStyle = "rgba(255,255,255,0.07)"; ctx.lineWidth = 1; ctx.stroke();
+  const done = isDone(), guessed = new Map();
+  if (state) state.guesses.forEach((k) => guessed.set(k, heatFor(distance(k, state.answer))));
+  if (landGeo) {
+    ctx.beginPath(); path(landGeo); ctx.fillStyle = "#b7b6a4"; ctx.fill();
+    ctx.beginPath(); path(borderGeo); ctx.strokeStyle = "rgba(14,26,37,0.5)"; ctx.lineWidth = 0.6; ctx.stroke();
+  }
+  // guessed countries: whole shape takes the distance color, drawn on top with a firm outline
+  const marks = state ? [...state.guesses] : [];
+  if (state && done && !marks.includes(state.answer)) marks.push(state.answer);
+  const rot = projection.rotate(), now = performance.now();
+  for (const k of marks) {
+    const cty = byKey.get(k), color = (done && k === state.answer) ? "#3fae6b" : guessed.get(k);
+    const pulsing = k === pulseKey && now - pulseStart < 1600;
+    ctx.beginPath(); path(cty.feature);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#0e1a25"; ctx.lineWidth = 1.6; ctx.stroke();
+    if (pulsing) { ctx.strokeStyle = "rgba(255,255,255," + (0.35 + 0.65 * Math.abs(Math.sin((now - pulseStart) / 160))) + ")"; ctx.lineWidth = 2.5; ctx.stroke(); }
+    // tiny countries get a dot in the same color so they stay findable
+    if (path.area(cty.feature) < 90 && d3.geoDistance(cty.center, [-rot[0], -rot[1]]) < Math.PI / 2 - 0.02) {
+      const p = projection(cty.center);
+      ctx.beginPath(); ctx.arc(p[0], p[1], 5, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.fill(); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+  }
+  ctx.beginPath(); path({ type: "Sphere" }); ctx.strokeStyle = "rgba(242,162,58,0.35)"; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.restore();
+}
+function flyTo(lonlat) {
+  spinning = false;
+  if (flyTimer) flyTimer.stop();
+  const from = projection.rotate(), to = [-lonlat[0], -lonlat[1] * 0.85];
+  let dl = ((to[0] - from[0] + 540) % 360) - 180;
+  if (reduceMotion) { projection.rotate([from[0] + dl, to[1]]); draw(); return; }
+  const ease = d3.easeCubicInOut;
+  flyTimer = d3.timer((t) => {
+    const k = ease(Math.min(1, t / 900));
+    projection.rotate([from[0] + dl * k, from[1] + (to[1] - from[1]) * k]);
+    draw();
+    if (t >= 900) flyTimer.stop();
+  });
+}
+(function interactions() {
+  // Drag follows the finger 1:1, redraws once per frame, and coasts after release.
+  let last = null, lastT = 0, vx = 0, vy = 0, coasting = false;
+  const turn = (dx, dy) => {
+    const r = projection.rotate(), k = 180 / (Math.PI * projection.scale());
+    projection.rotate([r[0] + dx * k, Math.max(-85, Math.min(85, r[1] - dy * k))]);
+    dirty = true;
+  };
+  canvas.addEventListener("pointerdown", (e) => {
+    spinning = false; coasting = false; vx = vy = 0; if (flyTimer) flyTimer.stop();
+    last = [e.clientX, e.clientY]; lastT = performance.now();
+    canvas.setPointerCapture(e.pointerId); canvas.classList.add("dragging");
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    if (!last) return;
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e], p = evs.length ? evs[evs.length - 1] : e;
+    const dx = p.clientX - last[0], dy = p.clientY - last[1], now = performance.now(), dt = Math.max(1, now - lastT);
+    vx = vx * 0.6 + (dx / dt) * 0.4; vy = vy * 0.6 + (dy / dt) * 0.4;
+    last = [p.clientX, p.clientY]; lastT = now;
+    turn(dx, dy);
+  });
+  const end = () => {
+    if (!last) return;
+    last = null; canvas.classList.remove("dragging");
+    if (performance.now() - lastT > 80) vx = vy = 0;
+    coasting = !reduceMotion && Math.hypot(vx, vy) > 0.05;
+  };
+  canvas.addEventListener("pointerup", end); canvas.addEventListener("pointercancel", end);
+  const setZoom = (z) => { zoom = Math.max(1, Math.min(5, z)); resize(); };
+  $("zin").addEventListener("click", () => setZoom(zoom * 1.5));
+  $("zout").addEventListener("click", () => setZoom(zoom / 1.5));
+  canvas.addEventListener("wheel", (e) => { e.preventDefault(); setZoom(zoom * Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+  new ResizeObserver(resize).observe(canvas);
+  let prev = 0;
+  d3.timer((t) => {
+    const dt = Math.min(50, t - prev); prev = t;
+    if (spinning) { const r = projection.rotate(); projection.rotate([r[0] + dt * 0.006, r[1]]); dirty = true; }
+    if (coasting) {
+      turn(vx * dt, vy * dt);
+      const decay = Math.exp(-dt / 320); vx *= decay; vy *= decay;
+      if (Math.hypot(vx, vy) < 0.01) coasting = false;
+    }
+    if (pulseKey && performance.now() - pulseStart < 1700) dirty = true;
+    if (dirty) { dirty = false; draw(); }
+  });
+})();
+
+/* ---------- Game logic ---------- */
+const distance = (a, b) => d3.geoDistance(byKey.get(a).center, byKey.get(b).center) * 3958.8;
+function bearing(a, b) {
+  const [l1, p1] = byKey.get(a).center.map((d) => d * Math.PI / 180), [l2, p2] = byKey.get(b).center.map((d) => d * Math.PI / 180);
+  const y = Math.sin(l2 - l1) * Math.cos(p2), x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(l2 - l1);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+const isWon = () => !!state && state.guesses.includes(state.answer);
+const isDone = () => !!state && (isWon() || state.guesses.length >= MAX_GUESSES);
+const cluesShown = () => isDone() ? 6 : Math.min(6, state.guesses.length + 1);
+
+function dailyAnswer(day) {
+  const cycle = Math.floor(day / answerPool.length), rnd = mulberry(7919 + cycle * 104729);
+  const order = answerPool.slice();
+  for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  return order[((day % order.length) + order.length) % order.length];
+}
+function startDaily() {
+  const day = todayIndex(), saved = store.get("sd-daily");
+  state = { mode: "daily", day, answer: dailyAnswer(day), guesses: (saved && saved.day === day) ? saved.guesses.filter((k) => byKey.has(k)) : [], fresh: -1 };
+  afterStart();
+}
+function startPractice() {
+  let a; do { a = answerPool[Math.floor(Math.random() * answerPool.length)]; } while (state && a === state.answer);
+  state = { mode: "practice", day: 0, answer: a, guesses: [], fresh: -1 };
+  afterStart();
+}
+function afterStart() {
+  $("msg").textContent = ""; $("sharebox").hidden = true; $("guess").value = "";
+  if (isDone()) flyTo(byKey.get(state.answer).center);
+  render();
+}
+function submit(key) {
+  if (isDone()) return;
+  const cty = byKey.get(key);
+  if (state.guesses.includes(key)) { $("msg").textContent = cty.name + " is already on your list."; return; }
+  state.guesses.push(key);
+  $("msg").textContent = "";
+  $("guess").value = "";
+  pulseKey = null;
+  if (state.mode === "daily") store.set("sd-daily", { day: state.day, guesses: state.guesses });
+  if (isDone()) {
+    if (state.mode === "daily") recordResult(isWon());
+    state.fresh = -1;
+    toast(isWon() ? "Case closed" : "Out of guesses", isWon() ? "same" : "colder");
+    flyTo(byKey.get(state.answer).center);
+  } else {
+    state.fresh = state.guesses.length; // index of clue just unlocked
+    if (!reduceMotion) { pulseKey = key; pulseStart = performance.now(); }
+    const i = state.fresh, d = CASES[state.answer], clue = i === 0 ? POP[d[0]] : i < 4 ? d[i] : i === 4 ? d[4].split(" ").map((c) => SWATCH_NAME[c] || c).join(", ") : "see the case file";
+    const m = $("msg"); m.textContent = "";
+    const b = document.createElement("b"); b.textContent = CLUE_LABELS[i] + ": " + clue;
+    const dNow = distance(key, state.answer), prevKey = state.guesses[state.guesses.length - 2];
+    let word, cls;
+    if (prevKey) { const dPrev = distance(prevKey, state.answer); if (Math.abs(dNow - dPrev) < 25) { word = "About the same"; cls = "same"; } else if (dNow < dPrev) { word = "Warmer"; cls = "warmer"; } else { word = "Colder"; cls = "colder"; } }
+    else if (dNow < 1500) { word = "Hot start"; cls = "warmer"; } else if (dNow < 4000) { word = "Warm start"; cls = "same"; } else { word = "Cold start"; cls = "colder"; }
+    toast(word, cls);
+    m.append(word + ". " + cty.name + " is " + Math.round(distance(key, state.answer)).toLocaleString("en-US") + " mi off " + ARROWS[Math.round(bearing(key, state.answer) / 45) % 8] + "  New clue. ", b);
+    flyTo(cty.center);
+  }
+  render();
+}
+let toastTimer = null;
+function toast(text, cls) {
+  const t = $("toast"); clearTimeout(toastTimer);
+  t.textContent = text; t.className = "toast show " + cls;
+  toastTimer = setTimeout(() => { t.className = "toast " + cls; }, 2400);
+}
+function recordResult(won) {
+  const s = store.get("sd-stats") || { streak: 0, best: 0, lastDay: null };
+  if (s.lastDay === state.day) return;
+  s.streak = won ? ((s.lastDay === state.day - 1 ? s.streak : 0) + 1) : 0;
+  s.best = Math.max(s.best, s.streak); s.lastDay = state.day;
+  store.set("sd-stats", s);
+}
+function shareText() {
+  const won = isWon(), sq = state.guesses.map((k) => {
+    if (k === state.answer) return "🟩";
+    const d = distance(k, state.answer); return d < 4000 ? "🟥" : "🟦";
+  }).join("");
+  const title = state.mode === "daily" ? "Wherld #" + (state.day + 1) : "Wherld (practice)";
+  return title + "  " + (won ? state.guesses.length : "X") + "/" + MAX_GUESSES + "\n" + sq + "\nwherld.com";
+}
+
+/* ---------- Rendering ---------- */
+function render() {
+  const data = CASES[state.answer], shown = cluesShown(), done = isDone(), won = isWon();
+  $("mode-daily").setAttribute("aria-pressed", state.mode === "daily");
+  $("mode-practice").setAttribute("aria-pressed", state.mode === "practice");
+  $("caseno").textContent = state.mode === "daily" ? "Daily No. " + (state.day + 1) : "Practice round";
+  const s = store.get("sd-stats");
+  $("streak").innerHTML = s ? "Streak <b>" + (s.lastDay >= todayIndex() - 1 ? s.streak : 0) + "</b> · Best <b>" + s.best + "</b>" : "Streak <b>0</b>";
+
+  const ol = $("clues"); ol.textContent = "";
+  CLUE_LABELS.forEach((label, i) => {
+    const li = document.createElement("li");
+    const n = document.createElement("span"); n.className = "n"; n.textContent = i + 1;
+    const k = document.createElement("span"); k.className = "k"; k.textContent = label;
+    li.append(n, k);
+    if (i < shown) {
+      const v = document.createElement("div"); v.className = "v";
+      if (i === 0) v.textContent = POP[data[0]];
+      else if (i < 4) v.textContent = data[i];
+      else if (i === 4) {
+        v.className = "v swatches";
+        data[4].split(" ").forEach((c) => { const sp = document.createElement("span"), dot = document.createElement("i"); dot.style.background = SWATCH[c]; sp.append(dot, SWATCH_NAME[c] || c); v.append(sp); });
+      } else {
+        const cv = document.createElement("canvas"); cv.id = "shape"; cv.setAttribute("role", "img"); cv.setAttribute("aria-label", "Outline of the mystery country"); v.append(cv);
+      }
+      if (i === state.fresh) li.classList.add("fresh");
+      li.append(v);
+    } else {
+      li.classList.add("locked");
+      const r = document.createElement("div"); r.className = "redact";
+      const bar = document.createElement("i"); bar.style.width = (70 + (i * 37) % 60) + "px";
+      const sm = document.createElement("small"); sm.textContent = "unlocks after miss " + i;
+      r.append(bar, sm); li.append(r);
+    }
+    ol.append(li);
+  });
+  if (shown === 6) drawShape();
+  $("locknote").hidden = shown >= 6;
+  $("locknote").textContent = (6 - shown) + (6 - shown === 1 ? " more clue" : " more clues") + " locked. Each miss opens one.";
+
+  const gl = $("glist"); gl.textContent = "";
+  if (!state.guesses.length) {
+    const li = document.createElement("li"); li.className = "empty"; li.textContent = "None yet. Each guess shows up here and on the globe."; gl.append(li);
+  }
+  state.guesses.forEach((key) => {
+    const cty = byKey.get(key), hit = key === state.answer, d = distance(key, state.answer);
+    const li = document.createElement("li"), b = document.createElement("button"); b.type = "button";
+    b.setAttribute("aria-label", cty.name + (hit ? ", correct" : ", " + Math.round(d) + " miles away") + ". Show on globe.");
+    const dot = document.createElement("span"); dot.className = "dot"; dot.style.background = hit ? "#3fae6b" : heatFor(d);
+    const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = cty.name;
+    const ds = document.createElement("span"); ds.className = "ds"; ds.textContent = hit ? "solved" : Math.round(d).toLocaleString("en-US") + " mi";
+    const ar = document.createElement("span"); ar.className = "ar"; ar.textContent = hit ? "✓" : ARROWS[Math.round(bearing(key, state.answer) / 45) % 8];
+    b.append(dot, nm, ds, ar); b.addEventListener("click", () => flyTo(cty.center));
+    li.append(b); gl.append(li);
+  });
+  $("left").textContent = done ? "" : (MAX_GUESSES - state.guesses.length) + " left";
+
+  $("guess").disabled = done; $("go").disabled = done;
+  $("guess").placeholder = done ? "Case closed" : "Type a country";
+  const v = $("verdict"); v.hidden = !done;
+  if (done) {
+    $("stamp").textContent = won ? "Case closed" : "Cold case"; $("stamp").className = "stamp " + (won ? "win" : "loss");
+    $("ans").textContent = byKey.get(state.answer).name;
+    const pts = MAX_GUESSES + 1 - state.guesses.length;
+    $("scoreline").textContent = won ? "Solved on guess " + state.guesses.length + " of " + MAX_GUESSES + " for " + pts + (pts === 1 ? " point." : " points.") + (state.mode === "daily" ? " A new case opens at midnight." : "") : "Out of guesses. " + (state.mode === "daily" ? "A new case opens at midnight." : "Try another one.");
+  }
+  draw();
+}
+function drawShape() {
+  const cv = $("shape"); if (!cv) return;
+  const w = 92, h = 62, dpr = Math.min(window.devicePixelRatio || 1, 2), f = byKey.get(state.answer).feature, c = d3.geoCentroid(f);
+  cv.width = w * dpr; cv.height = h * dpr;
+  const x = cv.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const pr = d3.geoAzimuthalEqualArea().rotate([-c[0], -c[1]]).fitExtent([[6, 6], [w - 6, h - 6]], f);
+  x.beginPath(); d3.geoPath(pr, x)(f);
+  x.fillStyle = "#1c2733"; x.fill();
+}
+
+/* ---------- Autocomplete ---------- */
+(function autocomplete() {
+  const input = $("guess"), list = $("suggest"); let items = [], active = 0;
+  function matches(q) {
+    const n = norm(q); if (!n) return [];
+    const starts = [], has = [];
+    for (const c of countries) { if (c.search.some((s) => s.startsWith(n))) starts.push(c); else if (c.search.some((s) => s.includes(n))) has.push(c); }
+    return starts.concat(has).slice(0, 8);
+  }
+  function show() {
+    items = matches(input.value); active = 0; list.textContent = "";
+    items.forEach((c, i) => {
+      const li = document.createElement("li"); li.setAttribute("role", "option"); li.id = "opt-" + i; li.textContent = c.name;
+      li.setAttribute("aria-selected", i === 0);
+      if (state.guesses.includes(c.key)) li.classList.add("used");
+      li.addEventListener("pointerdown", (e) => { e.preventDefault(); pick(c); });
+      list.append(li);
+    });
+    list.hidden = !items.length; input.setAttribute("aria-expanded", !!items.length);
+  }
+  function hide() { list.hidden = true; input.setAttribute("aria-expanded", "false"); }
+  function pick(c) { hide(); submit(c.key); input.focus(); }
+  function move(d) { if (!items.length) return; active = (active + d + items.length) % items.length; [...list.children].forEach((li, i) => li.setAttribute("aria-selected", i === active)); list.children[active].scrollIntoView({ block: "nearest" }); }
+  input.addEventListener("input", show);
+  input.addEventListener("focus", () => { if (input.value) show(); });
+  input.addEventListener("blur", hide);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
+    else if (e.key === "Escape") hide();
+  });
+  $("form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (isDone()) return;
+    const m = list.hidden ? matches(input.value) : items;
+    const exact = countries.find((c) => c.search.includes(norm(input.value)));
+    const choice = (!list.hidden && m[active]) || exact || m[0];
+    if (!choice) { $("msg").textContent = input.value.trim() ? "That country is not on this map. Pick one from the list." : "Type a country name first."; return; }
+    pick(choice);
+  });
+})();
+
+/* ---------- Buttons ---------- */
+$("mode-daily").addEventListener("click", () => { if (state.mode !== "daily") startDaily(); });
+$("mode-practice").addEventListener("click", () => { if (state.mode !== "practice") startPractice(); });
+$("again").addEventListener("click", startPractice);
+$("copy").addEventListener("click", async () => {
+  const text = shareText(), box = $("sharebox");
+  try { await navigator.clipboard.writeText(text); $("copy").textContent = "Copied"; setTimeout(() => { $("copy").textContent = "Copy result"; }, 1600); }
+  catch (e) { box.hidden = false; box.value = text; box.focus(); box.select(); }
+});
+
+/* ---------- Boot ---------- */
+function start(snap) {
+  fetch("world.json").then((r) => r.json()).then((world) => {
+    const geoms = world.objects.countries.geometries.filter((g) => !SKIP.has(g.id));
+    landGeo = topojson.merge(world, geoms);
+    borderGeo = topojson.mesh(world, { type: "GeometryCollection", geometries: geoms }, (a, b) => a !== b);
+    const feats = topojson.feature(world, world.objects.countries).features;
+    countries = feats.filter((f) => !SKIP.has(f.id)).map((f) => {
+      const key = f.id || f.properties.name, name = RENAME[f.properties.name] || f.properties.name;
+      let main = f;
+      if (f.geometry.type === "MultiPolygon") {
+        let best = -1;
+        for (const coords of f.geometry.coordinates) { const p = { type: "Polygon", coordinates: coords }, a = d3.geoArea(p); if (a > best) { best = a; main = p; } }
+      }
+      const search = [norm(name)].concat(ALIAS[key] ? ALIAS[key].split(" ").length > 3 ? splitAliases(ALIAS[key]) : ALIAS[key].split(" ") : []);
+      if (ALIAS[key]) search.push(norm(ALIAS[key]));
+      return { key, name, feature: f, center: d3.geoCentroid(main), search };
+    }).sort((a, b) => a.name.localeCompare(b.name));
+    byKey = new Map(countries.map((c) => [c.key, c]));
+    answerPool = Object.keys(CASES).filter((k) => byKey.has(k)).sort();
+    if (snap && snap.answer && byKey.has(snap.answer) && CASES[snap.answer]) { state = { mode: snap.mode, day: snap.day, answer: snap.answer, guesses: (snap.guesses || []).filter((k) => byKey.has(k)), fresh: -1 }; afterStart(); }
+    else startDaily();
+    resize();
+  }).catch(() => { $("msg").textContent = "The map could not load. Reload the page to try again."; });
+}
+function splitAliases(s) {
+  // multi-word aliases: keep known phrases together, plus single words
+  const phrases = ["great britain", "democratic republic of the congo", "congo kinshasa", "congo brazzaville", "ivory coast", "czech republic", "korea republic", "east timor"];
+  const out = []; let rest = s;
+  for (const p of phrases) if (rest.includes(p)) { out.push(p); rest = rest.replace(p, " "); }
+  return out.concat(rest.split(" ").filter(Boolean));
+}
+window.claude?.hot?.snapshot?.(() => state ? { mode: state.mode, day: state.day, answer: state.answer, guesses: state.guesses } : {});
+if (window.claude?.hot?.ready) window.claude.hot.ready(start); else start(window.claude?.hot?.data ?? {});
+</script>
+</body>
+</html>

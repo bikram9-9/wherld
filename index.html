@@ -7,7 +7,7 @@
 <meta name="description" content="Wherld: race a rival to name the mystery country. Live 1 v 1 matches, ratings and coins.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Kaushan+Script&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Pacifico&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* Layout idea: a detective's night desk. The lit globe owns the stage; the lobby card (home)
    or the paper case file (in play) floats in a corner. One theme by choice. */
@@ -27,7 +27,7 @@
   --solved: #3fae6b;
   --airmail-red: #c20d1a;
   --airmail-blue: #0a2a8f;
-  --font-brand: "Kaushan Script", "Brush Script MT", "Segoe Script", cursive;
+  --font-brand: "Pacifico", "Brush Script MT", "Segoe Script", cursive;
   --font-display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
   --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -42,7 +42,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .wrap { max-width: 1280px; margin: 0 auto; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
 header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; }
 .brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-.brand button { border: 0; background: none; padding: 0 4px 2px 0; font-family: var(--font-brand); font-weight: 400; font-size: clamp(32px, 4.6vw, 44px); line-height: 1; color: var(--paper); text-transform: lowercase; }
+.brand button { border: 0; background: none; padding: 0 4px 2px 0; font-family: var(--font-brand); font-weight: 400; font-size: clamp(28px, 4vw, 38px); line-height: 1.25; color: var(--paper); text-transform: lowercase; }
 .brand p { margin: 0; color: var(--muted); font-size: 13px; }
 .chips { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 13px; }
 .chips span { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 12px; color: var(--muted); white-space: nowrap; }
@@ -100,7 +100,7 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
   background: repeating-linear-gradient(135deg, var(--airmail-red) 0 16px, var(--paper) 16px 26px, var(--airmail-blue) 26px 42px, var(--paper) 42px 52px);
   box-shadow: 0 22px 44px rgba(0,0,0,0.55); }
 .lobby-in { position: relative; background: var(--paper); color: var(--paper-ink); padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 13px; }
-.lobby .lb-brand { font-family: var(--font-brand); font-size: 46px; line-height: 0.95; color: var(--airmail-blue); margin: 0 0 -4px; }
+.lobby .lb-brand { font-family: var(--font-brand); font-size: 42px; line-height: 1.2; color: var(--airmail-blue); margin: -8px 0 -6px; }
 .postmark { position: absolute; top: 12px; right: 14px; width: 74px; height: 74px; border-radius: 50%; border: 2px solid var(--airmail-red); outline: 1px solid var(--airmail-red); outline-offset: -6px; color: var(--airmail-red); display: grid; place-content: center; text-align: center; font-family: var(--font-mono); font-weight: 600; font-size: 9px; line-height: 1.25; letter-spacing: 0.08em; text-transform: uppercase; transform: rotate(11deg); opacity: 0.85; }
 .postmark b { display: block; font-size: 15px; letter-spacing: 0.02em; }
 .lobby h2 { font-family: var(--font-display); font-weight: 800; font-size: 23px; line-height: 1.08; margin: 0; letter-spacing: -0.01em; text-wrap: balance; max-width: 15ch; }

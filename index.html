@@ -637,7 +637,8 @@ let session = null;
 const track = (name, props) => { try { if (window.piTrack) window.piTrack(name, props); } catch (e) { /* never break the game */ } };
 if (window.piTrack) window.piTrack.setAuth(bearer);
 let gameT0 = 0;
-if (sb) sb.auth.onAuthStateChange((ev, s) => { if (ev === "SIGNED_IN" && s) { try { if (sessionStorage.getItem("pi-signed") === s.user.id) return; sessionStorage.setItem("pi-signed", s.user.id); } catch (e) { /* ok */ } track("sign_in", { method: (s.user.app_metadata && s.user.app_metadata.provider) || "email" }); } });
+let hadSession = false; try { hadSession = Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k)); } catch (e) { /* no storage */ }
+if (sb) sb.auth.onAuthStateChange((ev, s) => { if (ev === "SIGNED_OUT") hadSession = false; if (ev === "SIGNED_IN" && s && !hadSession) { hadSession = true; try { if (sessionStorage.getItem("pi-signed") === s.user.id) return; sessionStorage.setItem("pi-signed", s.user.id); } catch (e) { /* ok */ } track("sign_in", { method: (s.user.app_metadata && s.user.app_metadata.provider) || "email" }); } });
 if (sb) sb.auth.onAuthStateChange((ev) => { if (ev === "PASSWORD_RECOVERY") { recovering = true; if (typeof render === "function" && countries.length) { view = "home"; lobby = "newpass"; render(); } } });
 async function bearer() {
   if (!sb) return SB_KEY;

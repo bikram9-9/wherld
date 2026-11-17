@@ -291,6 +291,7 @@ body[data-live="1"] { --chrome: 268px; }
         <span class="pill">Rating <b id="chip-rating"></b></span>
         <span class="pill coin">Coins <b id="chip-coins"></b></span>
       </span>
+      <button type="button" class="chip-btn" id="open-account" hidden>Sign in</button>
       <button type="button" class="chip-btn gold" id="open-shop">Shop</button>
     </div>
   </header>
@@ -352,6 +353,43 @@ body[data-live="1"] { --chrome: 268px; }
         <p class="record" id="who-stats"></p>
         <button type="button" class="btn" data-back>Back</button>
       </div>
+      <div id="lb-account" hidden style="display:contents">
+        <p class="flyer-kicker">Your account</p>
+        <div id="au-out" style="display:contents">
+          <button type="button" class="btn primary" id="au-google">Continue with Google</button>
+          <p class="group-label">Or use email</p>
+          <form id="au-form" style="display:contents">
+            <label for="au-email">Email<input id="au-email" type="email" autocomplete="email" required></label>
+            <label for="au-pass">Password<input id="au-pass" type="password" autocomplete="current-password" minlength="8" required></label>
+            <div class="modes two-col"><button type="submit" class="btn" id="au-signin">Sign in</button><button type="button" class="btn" id="au-create">Create account</button></div>
+          </form>
+        </div>
+        <div id="au-in" hidden style="display:contents">
+          <p id="au-who" style="text-align:center;overflow-wrap:anywhere"></p>
+          <button type="button" class="btn" id="au-rename">Change nickname</button>
+          <button type="button" class="btn" id="au-mfa">Turn on two-step sign-in</button>
+          <button type="button" class="btn" id="au-signout">Sign out</button>
+        </div>
+        <p class="note" id="au-err" hidden></p>
+        <button type="button" class="btn" data-back>Back</button>
+      </div>
+      <form id="lb-mfa" hidden style="display:contents">
+        <p class="flyer-kicker">Two-step sign-in</p>
+        <label for="mfa-code">6-digit code from your authenticator app<input id="mfa-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></label>
+        <button type="submit" class="btn primary">Continue</button>
+        <p class="note" id="mfa-err" hidden></p>
+        <button type="button" class="btn" id="mfa-signout">Sign out</button>
+      </form>
+      <form id="lb-mfasetup" hidden style="display:contents">
+        <p class="flyer-kicker">Set up two-step</p>
+        <p>Scan this with an authenticator app, then enter the code it shows.</p>
+        <img id="mfa-qr" alt="QR code for your authenticator app" width="170" height="170" style="align-self:center;background:#fff;padding:6px;border:1.5px solid var(--paper-ink)">
+        <p class="record">Or type this key: <b id="mfa-secret" style="overflow-wrap:anywhere"></b></p>
+        <label for="mfa-setup-code">6-digit code<input id="mfa-setup-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></label>
+        <button type="submit" class="btn primary">Turn on</button>
+        <p class="note" id="mfa-setup-err" hidden></p>
+        <button type="button" class="btn" id="mfa-setup-cancel">Cancel</button>
+      </form>
       <div id="lb-shop" hidden style="display:contents">
         <p class="flyer-kicker">Pi's closet</p>
         <p>You have <b id="shop-coins">0</b> coins.</p>
@@ -420,6 +458,7 @@ body[data-live="1"] { --chrome: 268px; }
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 "use strict";
 /* ---------- Solo clue data: id -> [population bucket, continent, main language, famous dish, flag colors].
@@ -545,10 +584,20 @@ const EPOCH = new Date(2026, 10, 16); // daily case #1
 /* ---------- Server (Supabase). The key below is the public one, safe to ship. ---------- */
 const SB_URL = "https://wyvstvxrjdcmvmmdvunp.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dnN0dnhyamRjbXZtbWR2dW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4ODEyMjEsImV4cCI6MjExMDQ1NzIyMX0.fIVQecib_eAua7j3bVBY5SNoBUkyuGhCyuyy0Y4YNRs";
+const authReturnError = (/error_description=([^&]+)/.exec(location.hash + location.search) || [])[1];
+// Accounts: Supabase Auth keeps the session in this browser and refreshes it, so people stay signed in until they sign out.
+const sb = window.supabase && window.supabase.createClient ? window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }) : null;
+let session = null;
+async function bearer() {
+  if (!sb) return SB_KEY;
+  try { const { data } = await sb.auth.getSession(); session = data.session; } catch (e) { session = null; }
+  return session ? session.access_token : SB_KEY;
+}
 async function rpc(fn, args) {
   let r;
   try {
-    r = await fetch(SB_URL + "/rest/v1/rpc/" + fn, { method: "POST", headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, "Content-Type": "application/json" }, body: JSON.stringify(args || {}) });
+    const auth = await bearer();
+    r = await fetch(SB_URL + "/rest/v1/rpc/" + fn, { method: "POST", headers: { apikey: SB_KEY, Authorization: "Bearer " + auth, "Content-Type": "application/json" }, body: JSON.stringify(args || {}) });
   } catch (e) { const err = new Error("Can't reach the game server. Check your connection."); err.network = true; throw err; }
   const j = await r.json().catch(() => null);
   if (!r.ok) throw new Error((j && j.message) || "The game server had a problem. Try again.");
@@ -1008,6 +1057,95 @@ async function loadProfile() {
   catch (e) { if (e.network) online = false; else profile = null; }
   render();
 }
+let mfaOn = false, mfaPending = null;
+function authError(id, msg) { const el = $(id); el.textContent = msg; el.hidden = !msg; }
+// Runs at load and after every sign-in: finish two-step if needed, then load (or attach) the player for this account.
+async function syncAccount() {
+  await bearer();
+  if (!session) { mfaOn = false; return loadProfile(); }
+  try {
+    const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== "aal2") { mfaOn = true; view = "home"; lobby = "mfa"; render(); $("mfa-code").value = ""; $("mfa-code").focus(); return; }
+    const { data: fs } = await sb.auth.mfa.listFactors(); mfaOn = !!(fs && fs.totp && fs.totp.length);
+  } catch (e) { /* no two-step information; the server still enforces it */ }
+  try {
+    profile = await rpc("wh_link", { p_token: token() });
+    store.set("wh-token", null);
+    if (lobby === "account" || lobby === "mfa") lobby = "menu";
+  } catch (e) {
+    if (e.network) online = false;
+    else if (/Unknown player/.test(e.message)) {
+      profile = null;
+      const meta = (session.user && session.user.user_metadata) || {}, first = String(meta.full_name || meta.name || "").split(" ")[0].replace(/[^A-Za-z0-9 _-]/g, "").slice(0, 16);
+      needProfile(() => { lobby = "menu"; render(); });
+      if (first.length >= 3) { $("nick").value = first; $("nick").select(); }
+      return;
+    } else lobbyNote = e.message;
+  }
+  render();
+}
+async function signInGoogle() {
+  authError("au-err", "");
+  const { error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + location.pathname } });
+  if (error) authError("au-err", error.message);
+}
+async function signInEmail(create) {
+  const email = $("au-email").value.trim(), password = $("au-pass").value;
+  if (!/^\S+@\S+\.\S+$/.test(email)) return authError("au-err", "Enter your email address.");
+  if (password.length < 8) return authError("au-err", "Use a password with at least 8 characters.");
+  authError("au-err", ""); $("au-signin").disabled = $("au-create").disabled = true;
+  try {
+    const { data, error } = create ? await sb.auth.signUp({ email, password }) : await sb.auth.signInWithPassword({ email, password });
+    if (error) return authError("au-err", error.message);
+    if (!data.session) return authError("au-err", "Check your email to confirm your account, then sign in.");
+    $("au-pass").value = "";
+    await syncAccount();
+  } catch (e) { authError("au-err", "Can't reach the sign-in service. Check your connection."); }
+  finally { $("au-signin").disabled = $("au-create").disabled = false; }
+}
+async function signOut() {
+  stopPolling(); live = null;
+  try { await sb.auth.signOut(); } catch (e) { /* already signed out */ }
+  session = null; profile = null; mfaOn = false; view = "home"; lobby = "menu"; solo = null;
+  render();
+}
+async function mfaToggle() {
+  authError("au-err", "");
+  try {
+    const { data: fs } = await sb.auth.mfa.listFactors();
+    if (mfaOn) {
+      for (const f of (fs && fs.totp) || []) { const { error } = await sb.auth.mfa.unenroll({ factorId: f.id }); if (error) return authError("au-err", error.message); }
+      mfaOn = false; await sb.auth.refreshSession(); render(); return;
+    }
+    for (const f of ((fs && fs.all) || []).filter((x) => x.status !== "verified")) await sb.auth.mfa.unenroll({ factorId: f.id });
+    const { data, error } = await sb.auth.mfa.enroll({ factorType: "totp", friendlyName: "Authenticator " + Date.now() });
+    if (error) return authError("au-err", error.message);
+    mfaPending = data.id; $("mfa-qr").src = data.totp.qr_code; $("mfa-secret").textContent = data.totp.secret; $("mfa-setup-code").value = "";
+    authError("mfa-setup-err", ""); lobby = "mfasetup"; render(); $("mfa-setup-code").focus();
+  } catch (e) { authError("au-err", "Can't reach the sign-in service. Check your connection."); }
+}
+async function mfaConfirmSetup() {
+  const code = $("mfa-setup-code").value.trim();
+  if (!/^\d{6}$/.test(code)) return authError("mfa-setup-err", "Enter the 6-digit code.");
+  const { error } = await sb.auth.mfa.challengeAndVerify({ factorId: mfaPending, code });
+  if (error) return authError("mfa-setup-err", "That code didn't match. Try the newest one.");
+  mfaOn = true; mfaPending = null; lobby = "account"; render();
+}
+async function mfaCancelSetup() {
+  if (mfaPending) { try { await sb.auth.mfa.unenroll({ factorId: mfaPending }); } catch (e) { /* left unverified */ } }
+  mfaPending = null; lobby = "account"; render();
+}
+async function mfaVerifyLogin() {
+  const code = $("mfa-code").value.trim();
+  if (!/^\d{6}$/.test(code)) return authError("mfa-err", "Enter the 6-digit code.");
+  try {
+    const { data: fs } = await sb.auth.mfa.listFactors(), f = fs && fs.totp && fs.totp[0];
+    if (!f) return authError("mfa-err", "No authenticator is set up on this account.");
+    const { error } = await sb.auth.mfa.challengeAndVerify({ factorId: f.id, code });
+    if (error) return authError("mfa-err", "That code didn't match. Try the newest one.");
+    authError("mfa-err", ""); await syncAccount();
+  } catch (e) { authError("mfa-err", "Can't reach the sign-in service. Check your connection."); }
+}
 const boards = { ranked: null, today: null, blitz1: null, blitz3: null, blitz5: null };
 let boardTab = "ranked";
 async function loadBoard(tab) {
@@ -1035,7 +1173,7 @@ function paintBoard() {
   });
 }
 async function saveName(name) {
-  if (!token()) store.set("wh-token", newToken());
+  if (!session && !token()) store.set("wh-token", newToken());
   profile = await rpc("wh_register", { p_token: token(), p_name: name });
 }
 function needProfile(fn) {
@@ -1212,11 +1350,14 @@ function render() {
   if (profile) { $("chip-rating").textContent = profile.rating; $("chip-coins").textContent = profile.coins; }
 
   // lobby
-  ["menu", "name", "search", "shop", "blitz", "challenge", "boards"].forEach((k) => { $("lb-" + k).hidden = lobby !== (k === "search" ? "searching" : k); });
+  ["menu", "name", "search", "shop", "blitz", "challenge", "boards", "account", "mfa", "mfasetup"].forEach((k) => { $("lb-" + k).hidden = lobby !== (k === "search" ? "searching" : k); });
   $("who").hidden = !profile;
   if (profile) { $("who-name").textContent = profile.name; $("who-stats").textContent = "Your ranked record: " + profile.wins + " W · " + profile.losses + " L · " + profile.draws + " D"; } else $("who-stats").textContent = "";
   $("play-online").disabled = !online; $("play-friend").disabled = !online; $("open-shop").disabled = !online; $("offline").hidden = online;
   $("lobby-note").hidden = !lobbyNote; $("lobby-note").textContent = lobbyNote;
+  $("open-account").hidden = !sb || !!session; $("open-account").disabled = !online;
+  $("au-out").hidden = !!session; $("au-in").hidden = !session;
+  if (session) { $("au-who").textContent = "Signed in as " + (session.user.email || "your account"); $("au-mfa").textContent = mfaOn ? "Turn off two-step sign-in" : "Turn on two-step sign-in"; }
   const st = store.get("sd-stats");
   { const run = st && st.lastDay >= todayIndex() - 1 && st.streak; $("daily-sub").hidden = !run; $("daily-sub").textContent = run ? "Streak " + st.streak : ""; }
   $("search-title").textContent = joining ? "Joining the match" : "Finding an opponent";
@@ -1401,7 +1542,19 @@ $("open-shop").addEventListener("click", () => { if (leavePlay()) needProfile(()
 $("open-boards").addEventListener("click", () => { lobby = "boards"; render(); loadBoard(); });
 document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", () => { lobby = "menu"; render(); }));
 document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { boardTab = b.dataset.tab; render(); loadBoard(); }));
-$("rename").addEventListener("click", () => { if (!leavePlay()) return; afterName = null; lobby = "name"; render(); $("nick").value = profile.name; $("nick").focus(); });
+const editName = () => { afterName = null; lobby = "name"; render(); $("nick").value = profile ? profile.name : ""; $("nick").focus(); };
+$("rename").addEventListener("click", () => { if (!leavePlay()) return; if (session) { lobby = "account"; authError("au-err", ""); render(); } else editName(); });
+$("open-account").addEventListener("click", () => { if (!leavePlay()) return; lobby = "account"; authError("au-err", ""); render(); });
+$("au-google").addEventListener("click", signInGoogle);
+$("au-form").addEventListener("submit", (e) => { e.preventDefault(); signInEmail(false); });
+$("au-create").addEventListener("click", () => signInEmail(true));
+$("au-rename").addEventListener("click", editName);
+$("au-mfa").addEventListener("click", mfaToggle);
+$("au-signout").addEventListener("click", signOut);
+$("mfa-signout").addEventListener("click", signOut);
+$("lb-mfa").addEventListener("submit", (e) => { e.preventDefault(); mfaVerifyLogin(); });
+$("lb-mfasetup").addEventListener("submit", (e) => { e.preventDefault(); mfaConfirmSetup(); });
+$("mfa-setup-cancel").addEventListener("click", mfaCancelSetup);
 $("nick-cancel").addEventListener("click", () => { afterName = null; lobby = "menu"; render(); });
 $("lb-name").addEventListener("submit", async (e) => {
   e.preventDefault(); const err = $("nick-err"); err.hidden = true;
@@ -1466,8 +1619,9 @@ function start(snap) {
     if (ok && !invite) { solo = { mode: snap.solo.mode, day: snap.solo.day, answer: snap.solo.answer, guesses: (snap.solo.guesses || []).filter((k) => byKey.has(k)), fresh: -1, hint: null, t0: Date.now(), sent: true, extra: null }; enterPlay(); }
     else render();
     resize();
-    await loadProfile(); loadBoard();
-    if (invite) needProfile(() => joinChallenge(invite[1]));
+    if (authReturnError) lobbyNote = "Sign-in didn't finish: " + decodeURIComponent(authReturnError.replace(/\+/g, " "));
+    await syncAccount(); loadBoard();
+    if (invite && lobby !== "mfa") needProfile(() => joinChallenge(invite[1]));
   }).catch(() => { $("offline").hidden = false; $("offline").textContent = "The map could not load. Reload the page to try again."; });
 }
 window.claude?.hot?.snapshot?.(() => (view === "play" && solo && solo.mode !== "blitz") ? { solo: { mode: solo.mode, day: solo.day, answer: solo.answer, guesses: solo.guesses } } : {});

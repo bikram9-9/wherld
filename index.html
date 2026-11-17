@@ -144,7 +144,10 @@ main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr)
 /* Stage: the globe owns the screen; the case file and guess list float in its empty corners */
 main.stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .guessbar { width: 100%; max-width: 520px; }
-.globe-box { max-width: min(100%, max(260px, 100dvh - 212px)); }
+.globe-box { max-width: none; aspect-ratio: auto; height: max(260px, 100dvh - 212px); overflow: hidden; border-radius: 14px; }
+#globe { border-radius: 0; }
+.legend { left: 8px; bottom: 8px; }
+.zoom { right: 8px; bottom: 8px; }
 .casefile { position: absolute; top: 14px; right: 0; z-index: 4; width: 246px; min-height: 246px; transform: rotate(1.4deg); border-radius: 3px 12px 3px 3px; box-shadow: 5px 5px 0 -1px #cdbf9f, 9px 9px 0 -2px #b9aa87, 0 20px 40px rgba(0,0,0,0.5); }
 .casefile::before { width: 96px; left: 12px; }
 .clues li { grid-template-columns: 18px 72px minmax(0, 1fr); gap: 7px; }
@@ -159,7 +162,7 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 .msg { font-size: 13px; text-align: center; }
 @media (max-width: 900px) {
   .guessbar { position: sticky; top: 0; z-index: 6; max-width: none; background: var(--ink); padding: 8px 0 4px; box-shadow: 0 12px 16px -8px var(--ink); }
-  .globe-box { max-width: min(100%, max(240px, 62dvh)); }
+  .globe-box { height: min(calc(100vw - 32px), 62dvh); }
   .guesses { position: static; }
   .casefile { position: relative; top: 0; }
   .casefile, .guesses { transform: none; width: 100%; max-width: 440px; min-height: 0; }
@@ -375,25 +378,24 @@ const projection = d3.geoOrthographic().clipAngle(90).precision(0.6);
 const path = d3.geoPath(projection, ctx);
 const graticule = d3.geoGraticule10();
 let landGeo = null, borderGeo = null, dirty = false;
-let size = 0, zoom = 1, spinning = !reduceMotion, flyTimer = null, pulseKey = null, pulseStart = 0;
+let size = 0, W = 0, H = 0, zoom = 1, spinning = !reduceMotion, flyTimer = null, pulseKey = null, pulseStart = 0;
 projection.rotate([20, -18]);
 
 function resize() {
   const r = canvas.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
-  size = r.width;
-  canvas.width = Math.round(size * dpr); canvas.height = Math.round(size * dpr);
+  W = r.width; H = r.height; size = Math.min(W, H);
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  projection.translate([size / 2, size / 2]).scale((size / 2 - 14) * zoom);
+  projection.translate([W / 2, H / 2]).scale((size / 2 - 14) * zoom);
   draw();
 }
 function draw() {
   if (!size) return;
-  ctx.clearRect(0, 0, size, size);
-  const R = projection.scale(), c = size / 2;
+  ctx.clearRect(0, 0, W, H);
+  const R = projection.scale(), cx = W / 2, cy = H / 2;
   ctx.save();
-  ctx.beginPath(); ctx.arc(c, c, size / 2, 0, Math.PI * 2); ctx.clip();
   // ocean with lamp-lit falloff
-  const g = ctx.createRadialGradient(c - R * 0.35, c - R * 0.4, R * 0.1, c, c, R);
+  const g = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.4, R * 0.1, cx, cy, R);
   g.addColorStop(0, "#2c5a78"); g.addColorStop(1, "#16303f");
   ctx.beginPath(); path({ type: "Sphere" }); ctx.fillStyle = g; ctx.fill();
   ctx.beginPath(); path(graticule); ctx.strokeStyle = "rgba(255,255,255,0.07)"; ctx.lineWidth = 1; ctx.stroke();

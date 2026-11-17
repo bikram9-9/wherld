@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Stats · Where's Pi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: dark; --ink:#0e1a25; --panel:#152433; --line:#24384a; --text:#e6ecf1; --muted:#8ea3b5; --doodle:#e3ad55; --good:#3fae6b; --bad:#e5534b; --warn:#d6a03a; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--ink); color:var(--text); font:15px/1.5 "IBM Plex Sans", system-ui, sans-serif; }
+  main { max-width: 1120px; margin: 0 auto; padding: 20px 16px 60px; }
+  header { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom: 18px; }
+  .brand { font-family: Pacifico, cursive; font-size: 26px; color: var(--doodle); text-decoration:none; }
+  h1 { font-size: 18px; font-weight:600; margin:0; color: var(--muted); }
+  .spacer { flex:1; }
+  select, button, .btn { background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:7px 12px; font:inherit; cursor:pointer; text-decoration:none; }
+  button:hover, .btn:hover { border-color: var(--doodle); }
+  .muted { color: var(--muted); }
+  .grid { display:grid; gap:12px; }
+  .tiles { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); margin-bottom: 14px; }
+  .tile { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+  .tile .k { color:var(--muted); font-size:13px; }
+  .tile .v { font: 600 26px/1.2 "IBM Plex Sans", sans-serif; margin-top:4px; font-variant-numeric: tabular-nums; }
+  .tile .s { color:var(--muted); font-size:12px; margin-top:2px; }
+  .two { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); margin-bottom: 12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; min-width:0; }
+  .card h2 { font-size:15px; margin:0 0 10px; font-weight:600; }
+  table { width:100%; border-collapse: collapse; font-size:13.5px; }
+  th, td { text-align:left; padding:6px 8px 6px 0; border-bottom:1px solid var(--line); vertical-align: top; }
+  th { color:var(--muted); font-weight:400; }
+  td.n, th.n { text-align:right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.msg { font-family: "IBM Plex Mono", monospace; font-size:12px; word-break: break-word; }
+  .status { display:inline-flex; align-items:center; gap:6px; font-weight:600; }
+  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .up { color: var(--good); } .up .dot { background: var(--good); }
+  .down { color: var(--bad); } .down .dot { background: var(--bad); }
+  .warn { color: var(--warn); }
+  svg text { fill: var(--muted); font: 11px "IBM Plex Sans", sans-serif; }
+  .bar { fill: var(--doodle); } .bar:hover, .bar.hot { fill: #f2c983; }
+  .hit { fill: transparent; cursor: default; }
+  .tip { position: fixed; pointer-events:none; background:#0a141d; border:1px solid var(--line); border-radius:8px; padding:6px 9px; font-size:12.5px; display:none; z-index:5; }
+  .gate { max-width:460px; margin:12vh auto; text-align:center; }
+  .gate p { color:var(--muted); }
+  .meter { height:8px; background:var(--line); border-radius:4px; overflow:hidden; margin-top:4px; }
+  .meter > span { display:block; height:100%; background:var(--doodle); border-radius:4px; }
+  .rating { font-size:12px; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="tip" id="tip"></div>
+<main id="app"><p class="muted">Loading…</p></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+"use strict";
+const SB_URL = "https://wyvstvxrjdcmvmmdvunp.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dnN0dnhyamRjbXZtbWR2dW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4ODEyMjEsImV4cCI6MjExMDQ1NzIyMX0.fIVQecib_eAua7j3bVBY5SNoBUkyuGhCyuyy0Y4YNRs";
+const sb = supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+const app = document.getElementById("app"), tip = document.getElementById("tip");
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const num = (n) => n == null ? "–" : Number(n).toLocaleString("en-US");
+const ago = (t) => { if (!t) return "never"; const s = (Date.now() - new Date(t)) / 1000; return s < 90 ? Math.round(s) + "s ago" : s < 5400 ? Math.round(s / 60) + " min ago" : s < 129600 ? Math.round(s / 3600) + " h ago" : Math.round(s / 86400) + " d ago"; };
+const MODE = { daily: "Daily", practice: "Practice", city: "City hunt", blitz: "Blitz", ranked: "Ranked 1v1", friend: "Friend challenge", bot: "Practice rival" };
+// Core Web Vitals "good" / "poor" thresholds (ms; CLS unitless). MAP and API are our own timings.
+const VITAL = { LCP: ["Largest paint", 2500, 4000], INP: ["Interaction delay", 200, 500], CLS: ["Layout shift", 0.1, 0.25], FCP: ["First paint", 1800, 3000], TTFB: ["Server response", 800, 1800], MAP: ["Globe ready", 3000, 6000], API: ["Game server call", 400, 1000] };
+let days = +(localStorage.getItem("stats-days") || 7);
+
+function gate(html) { app.innerHTML = '<div class="gate"><a class="brand" href="/">Where\'s Pi</a>' + html + "</div>"; }
+async function signIn() { await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + "/stats.html" } }); }
+
+async function load() {
+  const { data } = await sb.auth.getSession();
+  if (!data.session) {
+    gate('<h1>Stats</h1><p>Sign in with the owner account to see site stats.</p><p><button id="g">Continue with Google</button></p><p><a href="/" class="muted">Or sign in on the game, then come back to /stats.html</a></p>');
+    document.getElementById("g").onclick = signIn; return;
+  }
+  const { data: s, error } = await sb.rpc("obs_stats", { p_days: days });
+  if (error) {
+    gate(/Not allowed|permission/i.test(error.message) ? "<h1>Not allowed</h1><p>This account can't view stats.</p>" : "<h1>Couldn't load stats</h1><p>" + esc(error.message) + '</p><p><button onclick="load()">Try again</button></p>');
+    return;
+  }
+  render(s);
+}
+
+function tile(k, v, sub) { return '<div class="tile"><div class="k">' + esc(k) + '</div><div class="v">' + v + "</div>" + (sub ? '<div class="s">' + sub + "</div>" : "") + "</div>"; }
+function bars(rows, key, label) {
+  const W = 520, H = 170, L = 34, B = 22, T = 8, n = rows.length, max = Math.max(1, ...rows.map((r) => r[key]));
+  const step = Math.ceil(max / 4) || 1, top = step * 4, bw = (W - L) / n, gap = Math.min(6, bw * 0.25);
+  let g = "";
+  for (let i = 0; i <= 4; i++) { const y = T + (H - T - B) * (1 - i / 4); g += '<line x1="' + L + '" x2="' + W + '" y1="' + y + '" y2="' + y + '" stroke="#24384a" stroke-width="1"/><text x="' + (L - 6) + '" y="' + (y + 4) + '" text-anchor="end">' + num(step * i) + "</text>"; }
+  rows.forEach((r, i) => {
+    const h = (H - T - B) * (r[key] / top), x = L + i * bw + gap / 2, w = Math.max(1, bw - gap), y = H - B - h;
+    const d = new Date(r.day + "T12:00:00"), lab = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    if (h > 0) g += '<path class="bar" data-i="' + i + '" d="M' + x + "," + (H - B) + "V" + (y + Math.min(4, h)) + "q0,-" + Math.min(4, h) + " " + Math.min(4, w / 2) + ",-" + Math.min(4, h) + "H" + (x + w - Math.min(4, w / 2)) + "q" + Math.min(4, w / 2) + ",0 " + Math.min(4, w / 2) + "," + Math.min(4, h) + "V" + (H - B) + 'Z"/>';
+    g += '<rect class="hit" x="' + (L + i * bw) + '" y="' + T + '" width="' + bw + '" height="' + (H - T - B) + '" data-tip="' + esc(lab + ": " + num(r[key]) + " " + label) + '"/>';
+    if (n <= 14 || i % Math.ceil(n / 10) === 0) g += '<text x="' + (L + i * bw + bw / 2) + '" y="' + (H - 6) + '" text-anchor="middle">' + esc(lab) + "</text>";
+  });
+  return '<svg viewBox="0 0 ' + W + " " + H + '" width="100%" role="img" aria-label="' + esc(label + " per day") + '">' + g + "</svg>";
+}
+function table(head, rows) {
+  if (!rows.length) return '<p class="muted">No data yet.</p>';
+  return "<table><tr>" + head.map((h) => "<th" + (h.n ? ' class="n"' : "") + ">" + esc(h.t) + "</th>").join("") + "</tr>" +
+    rows.map((r) => "<tr>" + r.map((c, i) => "<td" + (head[i].n ? ' class="n"' : head[i].msg ? ' class="msg"' : "") + ">" + c + "</td>").join("") + "</tr>").join("") + "</table>";
+}
+function share(list) {
+  const tot = list.reduce((a, r) => a + r.n, 0) || 1;
+  return table([{ t: "" }, { t: "Visitors", n: 1 }, { t: "Share", n: 1 }], list.map((r) => [esc(r.k) + '<div class="meter"><span style="width:' + (100 * r.n / tot).toFixed(1) + '%"></span></div>', num(r.n), Math.round(100 * r.n / tot) + "%"]));
+}
+
+function render(s) {
+  const k = s.kpi, lc = s.last_check, up = lc && lc.https_ok;
+  const vitals = s.vitals.filter((v) => VITAL[v.metric]).sort((a, b) => Object.keys(VITAL).indexOf(a.metric) - Object.keys(VITAL).indexOf(b.metric));
+  const fmtV = (m, v) => m === "CLS" ? Number(v).toFixed(3) : num(Math.round(v)) + " ms";
+  const rate = (m, v) => { const [, good, poor] = VITAL[m]; return v <= good ? '<span class="rating up">Good</span>' : v <= poor ? '<span class="rating warn">Needs work</span>' : '<span class="rating down">Poor</span>'; };
+  const f = s.funnel, pct = (a, b) => b ? Math.round(100 * a / b) + "%" : "–";
+  app.innerHTML =
+    '<header><a class="brand" href="/">Where\'s Pi</a><h1>Site stats</h1><span class="spacer"></span>' +
+    '<select id="days" aria-label="Date range">' + [[1, "Today"], [7, "Last 7 days"], [30, "Last 30 days"], [90, "Last 90 days"]].map(([v, t]) => '<option value="' + v + '"' + (v === days ? " selected" : "") + ">" + t + "</option>").join("") + "</select>" +
+    '<button id="refresh">Refresh</button><button id="out">Sign out</button></header>' +
+
+    '<div class="grid tiles">' +
+      tile("Site status", '<span class="status ' + (up ? "up" : "down") + '"><span class="dot"></span>' + (lc ? (up ? "Up" : "Down") : "–") + "</span>", lc ? "checked " + ago(lc.ts) + (up ? " · " + num(lc.ms) + " ms" : "") : "no checks yet") +
+      tile("Uptime", k.uptime_pct == null ? "–" : k.uptime_pct + "%", num(k.checks) + " checks, every 5 min") +
+      tile("Visitors", num(k.visitors), num(k.sessions) + " visits") +
+      tile("Page views", num(k.pageviews)) +
+      tile("Games started", num(k.games_started), num(k.games_finished) + " finished") +
+      tile("Win rate", k.win_rate == null ? "–" : k.win_rate + "%", "of finished games") +
+      tile("New accounts", num(k.signups), num(k.new_players) + " new players") +
+      tile("1v1 matches", num(k.matches), "finished") +
+      tile("Errors", num(k.errors), num(k.error_sessions) + " visits affected") +
+    "</div>" +
+    (lc && !up ? '<div class="card" style="margin-bottom:12px;border-color:var(--bad)"><span class="status down"><span class="dot"></span>Site check failing</span> <span class="muted">· ' + esc(lc.note || "") + "</span></div>" : "") +
+
+    '<div class="grid two">' +
+      '<div class="card"><h2>Visitors per day</h2>' + bars(s.daily, "visitors", "visitors") + "</div>" +
+      '<div class="card"><h2>Games started per day</h2>' + bars(s.daily, "games", "games") + "</div>" +
+    "</div>" +
+
+    '<div class="grid two">' +
+      '<div class="card"><h2>Game modes</h2>' + table([{ t: "Mode" }, { t: "Started", n: 1 }, { t: "Finished", n: 1 }, { t: "Wins", n: 1 }, { t: "Avg guesses to win", n: 1 }, { t: "Avg time", n: 1 }],
+        s.modes.map((m) => [esc(MODE[m.mode] || m.mode || "?"), num(m.started), num(m.finished), m.mode === "blitz" ? "avg " + (m.avg_score ?? "–") + " found" : num(m.wins), m.avg_guesses ?? "–", m.avg_secs == null ? "–" : m.avg_secs + "s"])) + "</div>" +
+      '<div class="card"><h2>Visit funnel</h2>' + table([{ t: "Step" }, { t: "Visits", n: 1 }, { t: "Of all visits", n: 1 }],
+        [["Opened the site", num(f.visited), "100%"], ["Started a game", num(f.started), pct(f.started, f.visited)], ["Finished a game", num(f.finished), pct(f.finished, f.visited)], ["Tried online play", num(f.online), pct(f.online, f.visited)], ["Shared a result", num(f.shared), pct(f.shared, f.visited)]]) + "</div>" +
+    "</div>" +
+
+    '<div class="grid two">' +
+      '<div class="card"><h2>Page speed <span class="muted">(75th percentile)</span></h2>' + table([{ t: "Measure" }, { t: "p75", n: 1 }, { t: "Median", n: 1 }, { t: "Samples", n: 1 }, { t: "" }],
+        vitals.map((v) => [esc(VITAL[v.metric][0]) + ' <span class="muted">' + v.metric + "</span>", fmtV(v.metric, v.p75), fmtV(v.metric, v.p50), num(v.n), rate(v.metric, v.p75)])) + "</div>" +
+      '<div class="card"><h2>Uptime by day</h2>' + table([{ t: "Day" }, { t: "Up", n: 1 }, { t: "Avg load", n: 1 }, { t: "Checks", n: 1 }],
+        s.uptime_daily.slice().reverse().map((u) => [esc(new Date(u.day + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })), '<span class="' + (u.pct >= 99.5 ? "up" : u.pct >= 95 ? "warn" : "down") + '">' + u.pct + "%</span>", num(u.avg_ms) + " ms", num(u.n)])) +
+        (s.incidents.length ? '<h2 style="margin-top:14px">Outages</h2>' + table([{ t: "Started" }, { t: "Last failed" }, { t: "Checks", n: 1 }, { t: "Reason", msg: 1 }],
+          s.incidents.map((i) => [esc(new Date(i.started).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })), esc(ago(i.last_failed)), num(i.checks), esc(i.note || "")])) : "") + "</div>" +
+    "</div>" +
+
+    '<div class="card" style="margin-bottom:12px"><h2>Errors</h2>' + table([{ t: "Error", msg: 1 }, { t: "Where" }, { t: "Count", n: 1 }, { t: "Visits", n: 1 }, { t: "Last seen", n: 1 }, { t: "Latest browser" }],
+      s.errors.map((e) => [esc(e.msg), esc(e.src || (e.kind === "api_error" ? "game server" : "")), num(e.n), num(e.sessions), esc(ago(e.last_seen)), esc(e.sample)])) + "</div>" +
+
+    '<div class="grid two">' +
+      '<div class="card"><h2>Where visitors came from</h2>' + table([{ t: "Source" }, { t: "Visits", n: 1 }], s.referrers.map((r) => [esc(r.k), num(r.n)])) + "</div>" +
+      '<div class="card"><h2>Time zones</h2>' + share(s.regions) + "</div>" +
+      '<div class="card"><h2>Devices</h2>' + share(s.devices) + "</div>" +
+      '<div class="card"><h2>Browsers</h2>' + share(s.browsers) + "</div>" +
+    "</div>" +
+    '<p class="muted" style="font-size:12px">Times in Central time · updated ' + esc(new Date(s.generated).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })) + " · data kept 180 days</p>";
+
+  document.getElementById("days").onchange = (e) => { days = +e.target.value; localStorage.setItem("stats-days", days); load(); };
+  document.getElementById("refresh").onclick = load;
+  document.getElementById("out").onclick = async () => { await sb.auth.signOut(); load(); };
+}
+
+app.addEventListener("mousemove", (e) => {
+  const t = e.target.closest && e.target.closest("[data-tip]");
+  document.querySelectorAll(".bar.hot").forEach((b) => b.classList.remove("hot"));
+  if (!t) { tip.style.display = "none"; return; }
+  const svg = t.ownerSVGElement, i = [...svg.querySelectorAll(".hit")].indexOf(t), bar = svg.querySelector('.bar[data-i="' + i + '"]');
+  if (bar) bar.classList.add("hot");
+  tip.textContent = t.dataset.tip; tip.style.display = "block";
+  tip.style.left = Math.min(e.clientX + 12, innerWidth - tip.offsetWidth - 8) + "px"; tip.style.top = (e.clientY - 34) + "px";
+});
+app.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+load();
+setInterval(() => { if (document.visibilityState === "visible" && document.getElementById("days")) load(); }, 60000);
+</script>
+</body>
+</html>

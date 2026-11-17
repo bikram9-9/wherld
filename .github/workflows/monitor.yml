@@ -1,0 +1,58 @@
+# Checks wherespi.com every 30 minutes. If anything is wrong the run fails,
+# and GitHub emails the repo owner (Settings > Notifications > Actions controls this).
+name: Site monitor
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+permissions: {}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SITE: https://wherespi.com/
+      HOST: wherespi.com
+      SB_URL: https://wyvstvxrjdcmvmmdvunp.supabase.co
+      # Public (anon) key, the same one shipped in index.html.
+      SB_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dnN0dnhyamRjbXZtbWR2dW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4ODEyMjEsImV4cCI6MjExMDQ1NzIyMX0.fIVQecib_eAua7j3bVBY5SNoBUkyuGhCyuyy0Y4YNRs
+    steps:
+      - name: Site loads over HTTPS
+        run: |
+          set -o pipefail
+          for i in 1 2 3; do
+            out=$(curl -sS --max-time 20 -o page.html -w '%{http_code} %{time_total}' "$SITE") && break
+            echo "Attempt $i failed: $out"; sleep 10
+          done
+          echo "HTTP status and seconds: $out"
+          [ "${out%% *}" = "200" ] || { echo "::error::$SITE did not return 200 (got: $out)"; exit 1; }
+          grep -q "Where's Pi" page.html || { echo "::error::Page loaded but the game's text is missing"; exit 1; }
+          echo "| Site | OK | ${out#* }s |" >> "$GITHUB_STEP_SUMMARY"
+      - name: SSL certificate valid for 14+ days
+        if: always()
+        run: |
+          end=$(echo | openssl s_client -servername "$HOST" -connect "$HOST:443" 2>/dev/null | openssl x509 -noout -enddate | cut -d= -f2)
+          [ -n "$end" ] || { echo "::error::Could not read the SSL certificate"; exit 1; }
+          days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
+          echo "Certificate expires $end ($days days)"
+          echo "| SSL | $days days left |" >> "$GITHUB_STEP_SUMMARY"
+          [ "$days" -ge 14 ] || { echo "::error::SSL certificate expires in $days days"; exit 1; }
+      - name: Game server and error rate
+        if: always()
+        run: |
+          h=$(curl -sS --max-time 20 -X POST "$SB_URL/rest/v1/rpc/obs_health" -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY" -H "Content-Type: application/json" -d '{}') \
+            || { echo "::error::Supabase (game server) is unreachable"; exit 1; }
+          echo "$h"
+          echo "| Health | \`$h\` |" >> "$GITHUB_STEP_SUMMARY"
+          python3 - "$h" <<'PY'
+          import json, sys, datetime as dt
+          h = json.loads(sys.argv[1]); bad = []
+          last = h.get("last_check")
+          if not last or (dt.datetime.now(dt.timezone.utc) - dt.datetime.fromisoformat(last)).total_seconds() > 1200:
+              bad.append("the in-database uptime checker has not run for 20+ minutes")
+          es, ss = h.get("error_sessions_1h", 0), h.get("sessions_1h", 0)
+          if es >= 5 and es > 0.2 * max(ss, 1):
+              bad.append(f"{es} of {ss} sessions hit errors in the last hour")
+          for b in bad: print(f"::error::{b}")
+          sys.exit(1 if bad else 0)
+          PY

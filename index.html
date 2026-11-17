@@ -480,6 +480,7 @@ body[data-live="1"] { --chrome: 268px; }
   </main>
 </div>
 
+<script src="metrics.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -632,6 +633,11 @@ const authReturnError = (/error_description=([^&]+)/.exec(location.hash + locati
 // Accounts: Supabase Auth keeps the session in this browser and refreshes it, so people stay signed in until they sign out.
 const sb = window.supabase && window.supabase.createClient ? window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }) : null;
 let session = null;
+/* Metrics (see metrics.js): anonymous usage stats and error reports. */
+const track = (name, props) => { try { if (window.piTrack) window.piTrack(name, props); } catch (e) { /* never break the game */ } };
+if (window.piTrack) window.piTrack.setAuth(bearer);
+let gameT0 = 0;
+if (sb) sb.auth.onAuthStateChange((ev, s) => { if (ev === "SIGNED_IN" && s) { try { if (sessionStorage.getItem("pi-signed") === s.user.id) return; sessionStorage.setItem("pi-signed", s.user.id); } catch (e) { /* ok */ } track("sign_in", { method: (s.user.app_metadata && s.user.app_metadata.provider) || "email" }); } });
 if (sb) sb.auth.onAuthStateChange((ev) => { if (ev === "PASSWORD_RECOVERY") { recovering = true; if (typeof render === "function" && countries.length) { view = "home"; lobby = "newpass"; render(); } } });
 async function bearer() {
   if (!sb) return SB_KEY;
@@ -640,12 +646,21 @@ async function bearer() {
 }
 async function rpc(fn, args) {
   let r;
+  const t0 = performance.now();
   try {
     const auth = await bearer();
     r = await fetch(SB_URL + "/rest/v1/rpc/" + fn, { method: "POST", headers: { apikey: SB_KEY, Authorization: "Bearer " + auth, "Content-Type": "application/json" }, body: JSON.stringify(args || {}) });
-  } catch (e) { const err = new Error("Can't reach the game server. Check your connection."); err.network = true; throw err; }
+  } catch (e) {
+    if (navigator.onLine !== false) track("api_error", { msg: "Network error calling " + fn, src: fn });
+    const err = new Error("Can't reach the game server. Check your connection."); err.network = true; throw err;
+  }
   const j = await r.json().catch(() => null);
-  if (!r.ok) throw new Error((j && j.message) || "The game server had a problem. Try again.");
+  if (!r.ok) {
+    // 400s are game rules saying no (e.g. "already guessed"); anything else is a real problem.
+    if (r.status !== 400) track("api_error", { msg: "HTTP " + r.status + " from " + fn + ((j && j.message) ? ": " + j.message : ""), src: fn });
+    throw new Error((j && j.message) || "The game server had a problem. Try again.");
+  }
+  if (fn !== "wh_state" && Math.random() < 0.25) track("vital", { metric: "API", value: Math.round(performance.now() - t0), fn });
   return j;
 }
 
@@ -963,6 +978,8 @@ function startSolo(mode, opt) {
   } else {
     solo = { mode: "practice", answer: pick(answerPool, prev), guesses: [], fresh: -1, hint: null };
   }
+  gameT0 = Date.now();
+  if (!(solo.mode === "daily" && solo.guesses.length)) track("game_start", { mode: solo.mode, minutes: solo.minutes });
   enterPlay();
 }
 function enterPlay() {
@@ -1008,6 +1025,7 @@ async function endBlitz() {
   const mine = solo;
   solo.over = true; solo.guesses = []; clearInterval(clockTimer); clockTimer = null;
   toast("Time!", ""); $("msg").textContent = "";
+  track("game_end", { mode: "blitz", minutes: mine.minutes, score: mine.score, missed: mine.missed, ms: Date.now() - gameT0 });
   render();
   if (!profile || !online || !mine.run) return;
   try {
@@ -1023,6 +1041,7 @@ async function useHint() {
   $("hint").disabled = true;
   try { profile = await rpc("wh_hint", { p_token: token() }); }
   catch (e) { $("msg").textContent = e.message; render(); return; }
+  track("hint", { mode: solo.mode });
   solo.hint = offsetPoint(byKey.get(solo.answer).center, 150 + Math.random() * 550, Math.random() * 360);
   if (solo.mode === "daily") saveDaily();
   buddy("wag", "I left a paw print!");
@@ -1090,6 +1109,7 @@ async function submit(key) {
     toast(found ? "Found Pi!" : "Pi stays hidden", found ? "good" : "colder");
     buddy(found ? "bark" : "whimper", found ? "You found me!" : "I was in " + byKey.get(solo.answer).name + "!");
     flyTo(byKey.get(solo.answer).center);
+    track("game_end", { mode: solo.mode, won: found, guesses: solo.guesses.length, ms: Date.now() - gameT0, hint: !!solo.hint });
     if (solo.mode === "daily") finishDaily(found);
   } else { solo.fresh = solo.guesses.length; feedback(before, model()); }
   render();
@@ -1151,6 +1171,7 @@ async function signInEmail(create) {
       }
       return authError("au-err", /already registered/i.test(error.message) ? "That email already has an account. Sign in, or tap Forgot password." : error.message);
     }
+    if (create) track("sign_up", { method: "email" });
     if (!data.session) return authError("au-err", "Almost there! We sent a confirmation link to " + email + ". Tap it, and you'll come back here signed in.");
     $("au-pass").value = "";
     await syncAccount();
@@ -1300,6 +1321,7 @@ function watch(id) {
 }
 async function startSearch() {
   view = "home"; lobby = "searching"; joining = false; lobbyNote = ""; searchStart = Date.now(); solo = null; live = null; render();
+  track("match_search");
   try { watch((await rpc("wh_find_match", { p_token: token() })).match); }
   catch (e) {
     lobby = "menu"; if (e.network) online = false; else lobbyNote = e.message;
@@ -1309,6 +1331,7 @@ async function startSearch() {
 }
 async function startChallenge() {
   view = "home"; lobby = "challenge"; challengeLink = ""; lobbyNote = ""; solo = null; live = null; render();
+  track("challenge_create");
   try {
     const r = await rpc("wh_challenge_create", { p_token: token() });
     challengeLink = location.origin + location.pathname + "#c-" + r.code;
@@ -1318,6 +1341,7 @@ async function startChallenge() {
 }
 async function joinChallenge(code) {
   view = "home"; lobby = "searching"; joining = true; lobbyNote = ""; searchStart = Date.now(); solo = null; live = null; render();
+  track("challenge_join");
   try {
     watch((await rpc("wh_challenge_join", { p_token: token(), p_code: code })).match);
     try { history.replaceState(null, "", location.pathname); } catch (e) { /* hash stays */ }
@@ -1355,7 +1379,8 @@ function applyLive(s, mine) {
   live.s = s; live.skew = s.now - Date.now(); profile = s.me;
   if (s.status === "waiting") { render(); return; }
   if (view !== "play") {
-    live.fresh = -1; enterPlay();
+    live.fresh = -1; enterPlay(); gameT0 = Date.now();
+    track("game_start", { mode: s.rated ? "ranked" : s.opp.bot ? "bot" : "friend" });
     toast((s.rated ? "Rival found: " : s.opp.bot ? "Practice rival: " : "Your friend is here: ") + s.opp.name, "");
   }
   const after = model();
@@ -1365,6 +1390,7 @@ function applyLive(s, mine) {
     if (!was || was.status !== "done") {
       stopPolling(); live.fresh = -1;
       const w = s.result.winner;
+      track("game_end", { mode: s.rated ? "ranked" : s.opp && s.opp.bot ? "bot" : "friend", won: w === "me", result: w, guesses: after.guesses.length, ms: Date.now() - gameT0 });
       toast(w === "me" ? "Victory" : w === "opp" ? "Defeat" : "Draw", w === "me" ? "good" : w === "opp" ? "colder" : "");
       buddy(w === "me" ? "bark" : "whimper", w === "me" ? "You found me first!" : "I was in " + s.result.answerName + "!");
       $("msg").textContent = "";
@@ -1425,6 +1451,7 @@ async function shareImage() {
     x.fillStyle = "#8ea3b5"; x.font = "500 30px 'IBM Plex Mono', monospace"; x.fillText("wherespi.com", 540, 1060);
     const blob = await new Promise((r) => cv.toBlob(r, "image/png"));
     const file = new File([blob], "wheres-pi.png", { type: "image/png" });
+    track("share", { kind: "image", mode: M.kind });
     if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], text: shareText() });
     else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "wheres-pi.png"; document.body.append(a); a.click(); a.remove(); $("share").textContent = "Saved"; setTimeout(() => { $("share").textContent = "Share image"; }, 1600); }
   } catch (e) { if (e.name !== "AbortError") $("msg").textContent = "Couldn't make the image here. Try it on wherespi.com."; }
@@ -1680,6 +1707,7 @@ $("again").addEventListener("click", () => {
 });
 $("copy").addEventListener("click", async () => {
   const text = shareText(), box = $("sharebox");
+  track("share", { kind: "text", mode: M.kind });
   try { await navigator.clipboard.writeText(text); $("copy").textContent = "Copied"; setTimeout(() => { $("copy").textContent = "Copy result"; }, 1600); }
   catch (e) { box.hidden = false; box.value = text; box.focus(); box.select(); }
 });
@@ -1720,12 +1748,13 @@ function start(snap) {
     if (ok && !invite) { solo = { mode: snap.solo.mode, day: snap.solo.day, answer: snap.solo.answer, guesses: (snap.solo.guesses || []).filter((k) => byKey.has(k)), fresh: -1, hint: null, t0: Date.now(), sent: true, extra: null }; enterPlay(); }
     else render();
     resize();
+    if (window.piTrack) window.piTrack.mark("MAP");
     if (authReturnError) lobbyNote = "Sign-in didn't finish: " + decodeURIComponent(authReturnError.replace(/\+/g, " "));
     await syncAccount(); loadBoard();
     if (recovering && session && lobby !== "mfa") { view = "home"; lobby = "newpass"; render(); }
     else if (justConfirmed && session && lobby === "menu") { lobbyNote = "Email confirmed. Welcome to Where's Pi!"; render(); }
     if (invite && lobby !== "mfa") needProfile(() => joinChallenge(invite[1]));
-  }).catch(() => { $("offline").hidden = false; $("offline").textContent = "The map could not load. Reload the page to try again."; });
+  }).catch((e) => { track("error", { msg: "Map failed to load: " + (e && e.message), src: "start" }); $("offline").hidden = false; $("offline").textContent = "The map could not load. Reload the page to try again."; });
 }
 window.claude?.hot?.snapshot?.(() => (view === "play" && solo && solo.mode !== "blitz") ? { solo: { mode: solo.mode, day: solo.day, answer: solo.answer, guesses: solo.guesses } } : {});
 if (window.claude?.hot?.ready) window.claude.hot.ready(start); else start(window.claude?.hot?.data ?? {});

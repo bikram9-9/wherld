@@ -6,11 +6,11 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Stats · Where's Pi</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap" rel="stylesheet">
 <style>
   :root { color-scheme: dark; --ink:#0e1a25; --panel:#152433; --line:#24384a; --text:#e6ecf1; --muted:#8ea3b5; --doodle:#e3ad55; --good:#3fae6b; --bad:#e5534b; --warn:#d6a03a; }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--ink); color:var(--text); font:15px/1.5 "IBM Plex Sans", system-ui, sans-serif; }
+  body { margin:0; background:var(--ink); color:var(--text); font:15px/1.5 "Bricolage Grotesque", system-ui, sans-serif; }
   main { max-width: 1120px; margin: 0 auto; padding: 20px 16px 60px; }
   header { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom: 18px; }
   .brand { font-family: Pacifico, cursive; font-size: 26px; color: var(--doodle); text-decoration:none; }
@@ -23,7 +23,7 @@
   .tiles { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); margin-bottom: 14px; }
   .tile { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
   .tile .k { color:var(--muted); font-size:13px; }
-  .tile .v { font: 600 26px/1.2 "IBM Plex Sans", sans-serif; margin-top:4px; font-variant-numeric: tabular-nums; }
+  .tile .v { font: 600 26px/1.2 "Bricolage Grotesque", sans-serif; margin-top:4px; font-variant-numeric: tabular-nums; }
   .tile .s { color:var(--muted); font-size:12px; margin-top:2px; }
   .two { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); margin-bottom: 12px; }
   .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; min-width:0; }
@@ -32,13 +32,13 @@
   th, td { text-align:left; padding:6px 8px 6px 0; border-bottom:1px solid var(--line); vertical-align: top; }
   th { color:var(--muted); font-weight:400; }
   td.n, th.n { text-align:right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  td.msg { font-family: "IBM Plex Mono", monospace; font-size:12px; word-break: break-word; }
+  td.msg { font-family: "Bricolage Grotesque", sans-serif; font-size:12px; word-break: break-word; }
   .status { display:inline-flex; align-items:center; gap:6px; font-weight:600; }
   .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
   .up { color: var(--good); } .up .dot { background: var(--good); }
   .down { color: var(--bad); } .down .dot { background: var(--bad); }
   .warn { color: var(--warn); }
-  svg text { fill: var(--muted); font: 11px "IBM Plex Sans", sans-serif; }
+  svg text { fill: var(--muted); font: 11px "Bricolage Grotesque", sans-serif; }
   .bar { fill: var(--doodle); } .bar:hover, .bar.hot { fill: #f2c983; }
   .hit { fill: transparent; cursor: default; }
   .tip { position: fixed; pointer-events:none; background:#0a141d; border:1px solid var(--line); border-radius:8px; padding:6px 9px; font-size:12.5px; display:none; z-index:5; }

@@ -59,9 +59,13 @@ header { display: flex; flex-wrap: wrap; align-items: center; justify-content: s
 @media (prefers-reduced-motion: reduce) { .pi-eyes, .pi-ear-l, .pi-ear-r, .brand button:hover .pi-logo { animation: none; } }
 .brand p { margin: 0; color: var(--muted); font-size: 13px; }
 .chips { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 13px; }
-.chips span { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 12px; color: var(--muted); white-space: nowrap; }
+.chip-group { display: contents; }
+.chips .pill, .chip-btn { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 12px; color: var(--muted); white-space: nowrap; font-family: var(--font-mono); font-size: 13px; }
 .chips b { color: var(--text); font-weight: 600; }
 .chips .coin b { color: var(--amber); }
+.chip-btn:hover { border-color: var(--muted); }
+.chip-btn.gold { border-color: var(--doodle); color: var(--doodle); font-weight: 600; }
+.chip-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 main.stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 
@@ -110,11 +114,11 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 
 /* Lobby (home): a "have you seen this dog?" flyer taped to the desk, with Pi peeking over the top. */
-.lobby { position: absolute; top: 30px; right: 4px; z-index: 4; width: 344px; transform: rotate(-1.4deg); }
+.lobby { position: absolute; top: 30px; right: 4px; z-index: 4; width: 310px; transform: rotate(-1.4deg); }
 .peek { position: absolute; right: 104px; top: -50px; width: 80px; height: 50px; overflow: hidden; pointer-events: none; }
 .peek span { display: block; width: 80px; height: 80px; animation: pi-peek 7s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .peek span { animation: none; transform: translateY(3px); } }
-.lobby-in { position: relative; background: var(--paper); color: var(--paper-ink); padding: 16px 18px 16px; display: flex; flex-direction: column; gap: 12px; border-radius: 2px; box-shadow: 0 22px 44px rgba(0,0,0,0.55); }
+.lobby-in { position: relative; background: var(--paper); color: var(--paper-ink); padding: 18px 22px 18px; display: flex; flex-direction: column; gap: 14px; border-radius: 2px; box-shadow: 0 22px 44px rgba(0,0,0,0.55); }
 .lobby-in::before, .lobby-in::after { content: ""; position: absolute; top: -10px; width: 74px; height: 22px; background: rgba(240, 214, 140, 0.72); box-shadow: 0 1px 2px rgba(0,0,0,0.25); }
 .lobby-in::before { left: -16px; transform: rotate(-32deg); }
 .lobby-in::after { right: -16px; transform: rotate(30deg); }
@@ -122,7 +126,7 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 .lobby h2 { font-family: var(--font-brand); font-weight: 400; font-size: 38px; line-height: 1.15; margin: -6px 0 -8px; text-align: center; color: var(--doodle-deep); }
 #lb-name h2, #lb-search h2, #lb-blitz h2 { font-size: 30px; margin: 0; }
 .flyer-row { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 14px; align-items: center; }
-.pi-photo { width: 78px; height: 78px; padding: 5px; background: #cfe3ee; border: 2px solid var(--paper-ink); transform: rotate(-3deg); box-shadow: 2px 3px 0 rgba(28,39,51,0.25); }
+.pi-photo { width: 116px; height: 116px; margin: 2px auto 4px; padding: 7px; background: #cfe3ee; border: 2px solid var(--paper-ink); transform: rotate(-3deg); box-shadow: 2px 3px 0 rgba(28,39,51,0.25); }
 .facts { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 13.5px; }
 .facts dt { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6452; padding-top: 3px; }
 .facts dd { margin: 0; font-weight: 600; }
@@ -139,13 +143,17 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 .btn.primary:hover { background: #efbd6a; }
 .btn.primary:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--paper-ink); }
 .btn.primary small { font-weight: 500; font-size: 11px; margin-top: 2px; color: #4a3406; }
+.link.center { align-self: center; font-size: 14px; font-weight: 500; margin-top: -4px; }
+.link:disabled { opacity: 0.5; cursor: not-allowed; }
+.group-label { margin: 2px 0 -6px !important; padding-top: 12px; border-top: 1.5px dashed var(--paper-ink); text-align: center; font-family: var(--font-mono); font-size: 11px !important; letter-spacing: 0.14em; text-transform: uppercase; color: #6b6452 !important; }
+.record { text-align: center; font-family: var(--font-mono); font-size: 12px !important; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .lobby label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #6b6452; display: flex; flex-direction: column; gap: 6px; }
 .lobby input { font: 500 17px var(--font-body); letter-spacing: 0; text-transform: none; color: var(--paper-ink); background: #f6f0e0; border: 1.5px solid var(--paper-ink); border-radius: 6px; padding: 9px 12px; }
 .lobby input:focus { outline: 2px solid var(--doodle-deep); outline-offset: 1px; }
 .board h3 { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #6b6452; margin: 0 0 4px; }
-.board ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 118px; overflow-y: auto; }
+.board ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 300px; overflow-y: auto; }
 .board li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; font-size: 14px; padding: 4px 0; border-bottom: 1px dashed var(--paper-line); }
 .board li:last-child { border-bottom: 0; }
 .board li span:first-child { font-family: var(--font-mono); font-size: 12px; color: #6b6452; }
@@ -208,8 +216,10 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 .modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .modes .btn { padding: 6px 4px; font-size: 14px; line-height: 1.2; }
 .modes .btn small { font-size: 10px; }
-.tabs { display: flex; gap: 4px; margin-bottom: 4px; }
-.tabs button { flex: 1; border: 1.5px solid var(--paper-ink); background: transparent; color: var(--paper-ink); border-radius: 4px; padding: 3px 4px; font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.modes.two-col { grid-template-columns: 1fr 1fr; gap: 8px; }
+.modes.two-col .btn { padding: 11px 6px; font-size: 15px; }
+.tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+.tabs button { flex: 1; border: 1.5px solid var(--paper-ink); background: transparent; color: var(--paper-ink); border-radius: 4px; padding: 6px 4px; font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
 .tabs button[aria-pressed="true"] { background: var(--paper-ink); color: var(--paper); }
 .shop { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 330px; overflow-y: auto; }
 .shop li { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 5px 0; border-bottom: 1px dashed var(--paper-line); }
@@ -273,11 +283,15 @@ body[data-live="1"] { --chrome: 268px; }
   <header>
     <div class="brand">
       <button type="button" id="home" aria-label="Where's Pi home"><span class="pi-logo" data-pi aria-hidden="true"></span>Where's Pi</button>
-      <p>Pi the goldendoodle is hiding in a mystery country. Sniff out where.</p>
+      <p>Find the country Pi is hiding in.</p>
     </div>
-    <div class="chips" id="chips" hidden>
-      <span>Rating <b id="chip-rating"></b></span>
-      <span class="coin">Coins <b id="chip-coins"></b></span>
+    <div class="chips">
+      <span id="who" hidden><button type="button" class="chip-btn" id="rename" title="Change your name"><b id="who-name"></b></button></span>
+      <span class="chip-group" id="chips" hidden>
+        <span class="pill">Rating <b id="chip-rating"></b></span>
+        <span class="pill coin">Coins <b id="chip-coins"></b></span>
+      </span>
+      <button type="button" class="chip-btn gold" id="open-shop">Shop</button>
     </div>
   </header>
 
@@ -315,37 +329,32 @@ body[data-live="1"] { --chrome: 268px; }
       <div id="lb-menu" style="display:contents">
         <p class="flyer-kicker">Have you seen this dog?</p>
         <h2>Where's Pi?</h2>
-        <div class="flyer-row">
-          <div class="pi-photo" data-pi role="img" aria-label="Pi, a fluffy golden goldendoodle"></div>
-          <dl class="facts">
-            <dt>Name</dt><dd>Pi, goldendoodle</dd>
-            <dt>Last seen</dt><dd>Somewhere on Earth</dd>
-            <dt>Reward</dt><dd>25 coins a find</dd>
-          </dl>
-        </div>
-        <div class="who" id="who" hidden>
-          <div><i>Player</i><b id="who-name"></b><small id="who-stats"></small></div>
-          <button type="button" class="link" id="rename">Change name</button>
-        </div>
-        <button type="button" class="btn primary" id="play-online">Play online<small>Race a rival to find Pi · 2 minutes · rated</small></button>
-        <p class="note" id="offline" hidden>Online play can't connect from here. Play ranked matches at wherespi.com.</p>
+        <div class="pi-photo" data-pi role="img" aria-label="Pi, a fluffy golden goldendoodle"></div>
+        <button type="button" class="btn primary" id="play-online">Play online</button>
+        <button type="button" class="link center" id="play-friend">Challenge a friend</button>
+        <p class="note" id="offline" hidden>Online play can't connect from here. Try wherespi.com.</p>
         <p class="note" id="lobby-note" hidden></p>
-        <div class="modes">
-          <button type="button" class="btn" id="play-daily">Daily<small id="daily-sub">One a day</small></button>
-          <button type="button" class="btn" id="play-practice">Practice<small>Unrated</small></button>
-          <button type="button" class="btn" id="play-city">City hunt<small>Harder</small></button>
-          <button type="button" class="btn" id="play-blitz">Blitz<small>Beat the clock</small></button>
-          <button type="button" class="btn" id="play-friend">Challenge<small>A friend</small></button>
-          <button type="button" class="btn" id="open-shop">Shop<small>Pi's outfits</small></button>
+        <p class="group-label">Play solo</p>
+        <div class="modes two-col">
+          <button type="button" class="btn" id="play-daily">Daily<small id="daily-sub" hidden></small></button>
+          <button type="button" class="btn" id="play-practice">Practice</button>
+          <button type="button" class="btn" id="play-city">City hunt</button>
+          <button type="button" class="btn" id="play-blitz">Blitz</button>
         </div>
+        <button type="button" class="link center" id="open-boards">Leaderboards</button>
+      </div>
+      <div id="lb-boards" hidden style="display:contents">
+        <p class="flyer-kicker">Leaderboards</p>
         <div class="board">
           <div class="tabs" role="group" aria-label="Leaderboard"><button type="button" data-tab="ranked">Ranked</button><button type="button" data-tab="today">Today</button><button type="button" data-tab="blitz3">Blitz</button></div>
           <ol id="board"></ol>
         </div>
+        <p class="record" id="who-stats"></p>
+        <button type="button" class="btn" data-back>Back</button>
       </div>
       <div id="lb-shop" hidden style="display:contents">
         <p class="flyer-kicker">Pi's closet</p>
-        <p>Pi wears your pick everywhere, including when you find Pi. You have <b id="shop-coins">0</b> coins.</p>
+        <p>You have <b id="shop-coins">0</b> coins.</p>
         <ul class="shop" id="shop-list"></ul>
         <p class="note" id="shop-note" hidden></p>
         <button type="button" class="btn" data-back>Back</button>
@@ -353,21 +362,21 @@ body[data-live="1"] { --chrome: 268px; }
       <div id="lb-blitz" hidden style="display:contents">
         <p class="flyer-kicker">Blitz</p>
         <h2>Beat the clock</h2>
-        <p>Pick a clock. Find Pi in as many countries as you can before it runs out. Six guesses per country, then Pi moves on.</p>
+        <p>Pick a clock. Find Pi as many times as you can.</p>
         <div class="modes"><button type="button" class="btn" data-min="1">1 min</button><button type="button" class="btn" data-min="3">3 min</button><button type="button" class="btn" data-min="5">5 min</button></div>
         <button type="button" class="btn" data-back>Back</button>
       </div>
       <div id="lb-challenge" hidden style="display:contents">
         <p class="flyer-kicker">Challenge a friend</p>
-        <p>Send this link. The match starts when your friend opens it. Friendly matches don't change ratings or coins.</p>
+        <p>Send this link. The match starts when your friend opens it.</p>
         <label for="ch-link">Your link<input id="ch-link" type="text" readonly></label>
         <button type="button" class="btn primary" id="ch-copy">Copy link</button>
-        <p style="text-align:center">Waiting for your friend. Keep this page open.</p>
+        <p style="text-align:center">Waiting. Keep this page open.</p>
         <button type="button" class="btn" id="ch-cancel">Cancel</button>
       </div>
       <form id="lb-name" hidden style="display:contents">
         <h2>Pick a nickname</h2>
-        <p>This is the name rivals see. 3 to 16 letters or numbers.</p>
+        <p>This is the name rivals see.</p>
         <label for="nick">Nickname<input id="nick" type="text" maxlength="16" autocomplete="nickname" spellcheck="false"></label>
         <button type="submit" class="btn primary" id="nick-save">Save</button>
         <button type="button" class="btn" id="nick-cancel">Back</button>
@@ -377,7 +386,7 @@ body[data-live="1"] { --chrome: 268px; }
         <h2 id="search-title">Finding an opponent</h2>
         <div class="pulse" style="align-self:center" aria-hidden="true"></div>
         <p id="search-time" style="text-align:center">0:00</p>
-        <p style="text-align:center" id="search-hint">If nobody is around after 10 seconds, you'll face a bot at your level.</p>
+        <p style="text-align:center" id="search-hint">No one after 10 seconds? You'll get a bot.</p>
         <button type="button" class="btn" id="search-cancel">Cancel</button>
       </div>
      </div>
@@ -1203,13 +1212,13 @@ function render() {
   if (profile) { $("chip-rating").textContent = profile.rating; $("chip-coins").textContent = profile.coins; }
 
   // lobby
-  ["menu", "name", "search", "shop", "blitz", "challenge"].forEach((k) => { $("lb-" + k).hidden = lobby !== (k === "search" ? "searching" : k); });
+  ["menu", "name", "search", "shop", "blitz", "challenge", "boards"].forEach((k) => { $("lb-" + k).hidden = lobby !== (k === "search" ? "searching" : k); });
   $("who").hidden = !profile;
-  if (profile) { $("who-name").textContent = profile.name; $("who-stats").textContent = profile.wins + " W · " + profile.losses + " L · " + profile.draws + " D"; }
+  if (profile) { $("who-name").textContent = profile.name; $("who-stats").textContent = "Your ranked record: " + profile.wins + " W · " + profile.losses + " L · " + profile.draws + " D"; } else $("who-stats").textContent = "";
   $("play-online").disabled = !online; $("play-friend").disabled = !online; $("open-shop").disabled = !online; $("offline").hidden = online;
   $("lobby-note").hidden = !lobbyNote; $("lobby-note").textContent = lobbyNote;
   const st = store.get("sd-stats");
-  $("daily-sub").textContent = st && st.lastDay >= todayIndex() - 1 && st.streak ? "Streak " + st.streak : "One a day";
+  { const run = st && st.lastDay >= todayIndex() - 1 && st.streak; $("daily-sub").hidden = !run; $("daily-sub").textContent = run ? "Streak " + st.streak : ""; }
   $("search-title").textContent = joining ? "Joining the match" : "Finding an opponent";
   $("search-hint").hidden = joining;
   $("ch-link").value = challengeLink || "Making your link...";
@@ -1387,10 +1396,12 @@ $("play-blitz").addEventListener("click", () => { lobby = "blitz"; render(); });
 document.querySelectorAll("[data-min]").forEach((b) => b.addEventListener("click", () => startSolo("blitz", +b.dataset.min)));
 $("play-online").addEventListener("click", () => needProfile(startSearch));
 $("play-friend").addEventListener("click", () => needProfile(startChallenge));
-$("open-shop").addEventListener("click", () => needProfile(() => { lobby = "shop"; view = "home"; $("shop-note").hidden = true; render(); }));
+const leavePlay = () => { if (view === "play") goHome(); return view === "home"; };
+$("open-shop").addEventListener("click", () => { if (leavePlay()) needProfile(() => { lobby = "shop"; $("shop-note").hidden = true; render(); }); });
+$("open-boards").addEventListener("click", () => { lobby = "boards"; render(); loadBoard(); });
 document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", () => { lobby = "menu"; render(); }));
 document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { boardTab = b.dataset.tab; render(); loadBoard(); }));
-$("rename").addEventListener("click", () => { afterName = null; lobby = "name"; render(); $("nick").value = profile.name; $("nick").focus(); });
+$("rename").addEventListener("click", () => { if (!leavePlay()) return; afterName = null; lobby = "name"; render(); $("nick").value = profile.name; $("nick").focus(); });
 $("nick-cancel").addEventListener("click", () => { afterName = null; lobby = "menu"; render(); });
 $("lb-name").addEventListener("submit", async (e) => {
   e.preventDefault(); const err = $("nick-err"); err.hidden = true;

@@ -7,7 +7,7 @@
 <meta name="description" content="Wherld: race a rival to name the mystery country. Live 1 v 1 matches, ratings and coins.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Kaushan+Script&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* Layout idea: a detective's night desk. The lit globe owns the stage; the lobby card (home)
    or the paper case file (in play) floats in a corner. One theme by choice. */
@@ -25,6 +25,9 @@
   --far: #0a2a8f;
   --near: #c20d1a;
   --solved: #3fae6b;
+  --airmail-red: #c20d1a;
+  --airmail-blue: #0a2a8f;
+  --font-brand: "Kaushan Script", "Brush Script MT", "Segoe Script", cursive;
   --font-display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
   --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -39,8 +42,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .wrap { max-width: 1280px; margin: 0 auto; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
 header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; }
 .brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-.brand button { border: 0; background: none; padding: 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(26px, 4vw, 36px); line-height: 1; letter-spacing: -0.02em; }
-.brand button span { color: var(--amber); }
+.brand button { border: 0; background: none; padding: 0 4px 2px 0; font-family: var(--font-brand); font-weight: 400; font-size: clamp(32px, 4.6vw, 44px); line-height: 1; color: var(--paper); text-transform: lowercase; }
 .brand p { margin: 0; color: var(--muted); font-size: 13px; }
 .chips { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 13px; }
 .chips span { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 12px; color: var(--muted); white-space: nowrap; }
@@ -93,37 +95,45 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 .toast.good { background: var(--solved); border-color: #b9f0cf; color: #06200f; }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 
-/* Lobby (home) */
-.lobby { position: absolute; top: 8px; right: 0; z-index: 4; width: 340px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
-.lobby h2 { font-family: var(--font-display); font-weight: 800; font-size: 26px; line-height: 1.05; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
-.lobby p { margin: 0; color: var(--muted); font-size: 14px; }
-.who { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
-.who b { font-size: 16px; }
-.who small { display: block; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
-.link { border: 0; background: none; padding: 0; color: var(--amber); font-size: 13px; text-decoration: underline; }
-.btn { border: 1px solid var(--line); background: transparent; border-radius: 10px; padding: 10px 14px; font-weight: 600; text-align: center; }
-.btn:hover { border-color: var(--muted); }
-.btn.primary { border: 0; background: var(--amber); color: #1b1304; padding: 14px; font-family: var(--font-display); font-weight: 800; font-size: 20px; }
-.btn.primary small { display: block; font-family: var(--font-mono); font-weight: 500; font-size: 11px; margin-top: 2px; }
+/* Lobby (home): an airmail letter on the desk. Striped edge, paper inside, ink and airmail red. */
+.lobby { position: absolute; top: 8px; right: 0; z-index: 4; width: 350px; padding: 9px; border-radius: 4px; transform: rotate(-1.2deg);
+  background: repeating-linear-gradient(135deg, var(--airmail-red) 0 16px, var(--paper) 16px 26px, var(--airmail-blue) 26px 42px, var(--paper) 42px 52px);
+  box-shadow: 0 22px 44px rgba(0,0,0,0.55); }
+.lobby-in { position: relative; background: var(--paper); color: var(--paper-ink); padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 13px; }
+.lobby .lb-brand { font-family: var(--font-brand); font-size: 46px; line-height: 0.95; color: var(--airmail-blue); margin: 0 0 -4px; }
+.postmark { position: absolute; top: 12px; right: 14px; width: 74px; height: 74px; border-radius: 50%; border: 2px solid var(--airmail-red); outline: 1px solid var(--airmail-red); outline-offset: -6px; color: var(--airmail-red); display: grid; place-content: center; text-align: center; font-family: var(--font-mono); font-weight: 600; font-size: 9px; line-height: 1.25; letter-spacing: 0.08em; text-transform: uppercase; transform: rotate(11deg); opacity: 0.85; }
+.postmark b { display: block; font-size: 15px; letter-spacing: 0.02em; }
+.lobby h2 { font-family: var(--font-display); font-weight: 800; font-size: 23px; line-height: 1.08; margin: 0; letter-spacing: -0.01em; text-wrap: balance; max-width: 15ch; }
+.lobby p { margin: 0; font-size: 14px; color: #47525e; }
+.who { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; border-top: 1.5px solid var(--paper-ink); border-bottom: 1.5px solid var(--paper-ink); padding: 8px 0; }
+.who i { display: block; font-style: normal; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6452; }
+.who b { font-size: 17px; }
+.who small { display: block; font-family: var(--font-mono); font-size: 12px; color: #47525e; }
+.link { border: 0; background: none; padding: 0; color: var(--airmail-blue); font-size: 13px; text-decoration: underline; }
+.btn { border: 1.5px solid var(--paper-ink); background: transparent; color: var(--paper-ink); border-radius: 4px; padding: 9px 12px; font-weight: 600; text-align: center; }
+.btn:hover { background: #f6f0e0; }
+.btn small { display: block; font-family: var(--font-mono); font-weight: 400; font-size: 11px; color: #6b6452; }
+.btn.primary { border: 0; background: var(--airmail-red); color: #fff6e6; padding: 13px; font-family: var(--font-display); font-weight: 800; font-size: 22px; letter-spacing: 0.01em; box-shadow: 0 4px 0 #7d0a12; }
+.btn.primary:hover { background: #d3131f; }
+.btn.primary:active { transform: translateY(3px); box-shadow: 0 1px 0 #7d0a12; }
+.btn.primary small { font-weight: 500; font-size: 11px; margin-top: 2px; color: #ffd9cf; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn small { display: block; font-family: var(--font-mono); font-weight: 400; font-size: 11px; color: var(--muted); }
-.btn.primary small { color: #4a3406; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.lobby label { font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
-.lobby input { font: inherit; color: var(--text); background: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; }
-.lobby input:focus { outline: none; border-color: var(--amber); }
-.board h3 { font-family: var(--font-mono); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 6px; }
-.board ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 190px; overflow-y: auto; }
-.board li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; font-size: 14px; padding: 3px 0; }
-.board li span:first-child { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
-.board li span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.board li span:last-child { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.board li.none { display: block; color: var(--muted); font-size: 13px; }
-.searching { align-items: center; text-align: center; }
-.pulse { width: 54px; height: 54px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--amber); animation: spin 0.9s linear infinite; }
+.lobby label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #6b6452; display: flex; flex-direction: column; gap: 6px; }
+.lobby input { font: 500 17px var(--font-body); letter-spacing: 0; text-transform: none; color: var(--paper-ink); background: #f6f0e0; border: 1.5px solid var(--paper-ink); border-radius: 4px; padding: 9px 12px; }
+.lobby input:focus { outline: 2px solid var(--airmail-blue); outline-offset: 1px; }
+.board h3 { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #6b6452; margin: 0 0 4px; }
+.board ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 168px; overflow-y: auto; }
+.board li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; font-size: 14px; padding: 4px 0; border-bottom: 1px dashed var(--paper-line); }
+.board li:last-child { border-bottom: 0; }
+.board li span:first-child { font-family: var(--font-mono); font-size: 12px; color: #6b6452; }
+.board li span:nth-child(2) { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board li span:last-child { font-family: var(--font-mono); font-weight: 600; font-variant-numeric: tabular-nums; }
+.board li.none { display: block; color: #6b6452; font-size: 13px; }
+.pulse { width: 54px; height: 54px; border-radius: 50%; border: 3px solid var(--paper-line); border-top-color: var(--airmail-red); animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
-.note { font-size: 13px; color: #ffb199; }
+.note { font-size: 13px; color: var(--airmail-red) !important; font-weight: 500; }
 
 /* Case file */
 .casefile { position: absolute; top: 14px; right: 0; z-index: 4; width: 246px; min-height: 246px; transform: rotate(1.4deg); background: var(--paper); color: var(--paper-ink); border-radius: 3px 12px 3px 3px; padding: 10px 14px 2px; box-shadow: 5px 5px 0 -1px #cdbf9f, 9px 9px 0 -2px #b9aa87, 0 20px 40px rgba(0,0,0,0.5); }
@@ -184,7 +194,7 @@ body[data-live="1"] { --chrome: 268px; }
   .guessbar { position: sticky; top: 0; z-index: 6; max-width: none; background: var(--ink); padding: 8px 0 4px; box-shadow: 0 12px 16px -8px var(--ink); }
   .globe-box { height: min(calc(100vw - 32px), 62dvh); }
   body[data-view="home"] .globe-box { height: min(calc(100vw - 32px), 44dvh); }
-  .lobby { position: static; width: 100%; max-width: 440px; }
+  .lobby { position: static; width: 100%; max-width: 440px; transform: none; }
   .guesses { position: static; width: 100%; max-width: 440px; }
   .casefile { position: relative; top: 0; transform: none; width: 100%; max-width: 440px; min-height: 0; margin-top: 14px; }
   .guesses ol { flex-direction: row; flex-wrap: wrap; }
@@ -197,7 +207,7 @@ body[data-live="1"] { --chrome: 268px; }
 <div class="wrap">
   <header>
     <div class="brand">
-      <button type="button" id="home" aria-label="Wherld home">Wher<span>ld</span></button>
+      <button type="button" id="home" aria-label="Wherld home">wherld</button>
       <p>Where in the world? Name the mystery country before your rival does.</p>
     </div>
     <div class="chips" id="chips" hidden>
@@ -233,10 +243,13 @@ body[data-live="1"] { --chrome: 268px; }
     </div>
 
     <section class="lobby" id="lobby" aria-label="Lobby">
+     <div class="lobby-in">
+      <p class="lb-brand" aria-hidden="true">wherld</p>
+      <div class="postmark" aria-hidden="true">Live<b>1 v 1</b>World wide</div>
       <div id="lb-menu" style="display:contents">
         <h2>Race a rival to name the country.</h2>
         <div class="who" id="who" hidden>
-          <div><b id="who-name"></b><small id="who-stats"></small></div>
+          <div><i>Player</i><b id="who-name"></b><small id="who-stats"></small></div>
           <button type="button" class="link" id="rename">Change name</button>
         </div>
         <button type="button" class="btn primary" id="play-online">Play online<small>1 v 1 race · 2 minutes · rated</small></button>
@@ -265,6 +278,7 @@ body[data-live="1"] { --chrome: 268px; }
         <p style="text-align:center">If nobody is around after 10 seconds, you'll face a bot at your level.</p>
         <button type="button" class="btn" id="search-cancel">Cancel</button>
       </div>
+     </div>
     </section>
 
     <div class="casefile">

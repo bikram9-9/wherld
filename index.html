@@ -282,7 +282,7 @@ body[data-live="1"] { --chrome: 268px; }
           <button type="button" class="link" id="rename">Change name</button>
         </div>
         <button type="button" class="btn primary" id="play-online">Play online<small>Race a rival to find Pi · 2 minutes · rated</small></button>
-        <p class="note" id="offline" hidden>Online play can't connect from here. Play ranked matches at wherld.com.</p>
+        <p class="note" id="offline" hidden>Online play can't connect from here. Play ranked matches at wherespi.com.</p>
         <div class="two">
           <button type="button" class="btn" id="play-daily">Daily search<small id="daily-sub">One a day</small></button>
           <button type="button" class="btn" id="play-practice">Practice<small>Unlimited, unrated</small></button>
@@ -858,11 +858,11 @@ function shareText() {
   if (M.kind === "live") {
     const r = live.s.result, word = r.winner === "me" ? "won" : r.winner === "opp" ? "lost" : "drew";
     const sq = M.guesses.map((g) => g.ok ? "🟩" : g.d < 4000 ? "🟥" : "🟦").join("");
-    return "Where's Pi 1v1: I " + word + " against " + live.s.opp.name + " (" + r.answerName + ")\n" + sq + "\nRating " + live.s.me.rating + " · wherld.com";
+    return "Where's Pi 1v1: I " + word + " against " + live.s.opp.name + " (" + r.answerName + ")\n" + sq + "\nRating " + live.s.me.rating + " · wherespi.com";
   }
   const sq = M.guesses.map((g) => g.ok ? "🟩" : g.d < 4000 ? "🟥" : "🟦").join("");
   const title = M.kind === "daily" ? "Where's Pi #" + (solo.day + 1) : "Where's Pi (practice)";
-  return title + "  " + (M.won ? M.guesses.length : "X") + "/" + MAX_GUESSES + "\n" + sq + "\nwherld.com";
+  return title + "  " + (M.won ? M.guesses.length : "X") + "/" + MAX_GUESSES + "\n" + sq + "\nwherespi.com";
 }
 
 /* ---------- Rendering ---------- */

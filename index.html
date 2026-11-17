@@ -600,6 +600,24 @@ const SWATCH = { red: "#c8102e", white: "#ffffff", blue: "#1f4fa3", green: "#1e8
 const SWATCH_NAME = { lightblue: "light blue" };
 const RENAME = { "W. Sahara": "Western Sahara", "Dem. Rep. Congo": "DR Congo", "Dominican Rep.": "Dominican Republic", "Falkland Is.": "Falkland Islands", "Central African Rep.": "Central African Republic", "Eq. Guinea": "Equatorial Guinea", "eSwatini": "Eswatini", "Solomon Is.": "Solomon Islands", "Bosnia and Herz.": "Bosnia and Herzegovina", "Macedonia": "North Macedonia", "S. Sudan": "South Sudan", "N. Cyprus": "Northern Cyprus", "United States of America": "United States", "Congo": "Republic of the Congo" };
 const ALIAS = { "840": "usa us america", "826": "uk britain great britain england scotland wales", "180": "democratic republic of the congo drc congo kinshasa", "178": "congo brazzaville", "384": "ivory coast", "203": "czech republic", "792": "turkiye", "104": "burma", "748": "swaziland", "784": "uae emirates", "410": "korea republic", "408": "dprk", "528": "holland", "626": "east timor", "807": "macedonia" };
+// Countries too small for the world map: guessable as dots at their centre.
+const MICRO = [
+  ["020", "Andorra", 42.51, 1.52, ""], ["028", "Antigua and Barbuda", 17.07, -61.8, "antigua|barbuda"],
+  ["048", "Bahrain", 26.07, 50.56, ""], ["052", "Barbados", 13.19, -59.54, ""],
+  ["132", "Cape Verde", 15.12, -23.6, "cabo verde"], ["174", "Comoros", -11.88, 43.87, ""],
+  ["212", "Dominica", 15.41, -61.37, ""], ["308", "Grenada", 12.12, -61.68, ""],
+  ["296", "Kiribati", 1.87, -157.36, ""], ["438", "Liechtenstein", 47.16, 9.55, ""],
+  ["462", "Maldives", 3.2, 73.22, ""], ["470", "Malta", 35.94, 14.38, ""],
+  ["480", "Mauritius", -20.35, 57.55, ""], ["492", "Monaco", 43.74, 7.42, ""],
+  ["520", "Nauru", -0.52, 166.93, ""], ["583", "Micronesia", 6.92, 158.16, "fsm"],
+  ["584", "Marshall Islands", 7.13, 171.18, "marshall"], ["585", "Palau", 7.51, 134.58, ""],
+  ["659", "Saint Kitts and Nevis", 17.36, -62.78, "st kitts and nevis|st kitts|nevis"], ["662", "Saint Lucia", 13.91, -60.98, "st lucia"],
+  ["670", "Saint Vincent and the Grenadines", 13.25, -61.2, "st vincent and the grenadines|st vincent|grenadines"], ["674", "San Marino", 43.94, 12.46, ""],
+  ["678", "São Tomé and Príncipe", 0.19, 6.61, "sao tome|principe"], ["690", "Seychelles", -4.68, 55.49, ""],
+  ["702", "Singapore", 1.35, 103.82, ""], ["776", "Tonga", -21.18, -175.2, ""],
+  ["798", "Tuvalu", -7.11, 177.65, ""], ["336", "Vatican City", 41.9, 12.45, "vatican|holy see|the vatican"],
+  ["882", "Samoa", -13.76, -172.1, ""],
+];
 const SKIP = new Set(["010", "260"]);
 const MAX_GUESSES = 6;
 const CLUE_LABELS = ["Population", "Continent", "Main language", "Famous dish", "Flag colors", "Outline"];
@@ -1691,7 +1709,9 @@ function start(snap) {
       }
       const search = [norm(name)].concat(ALIAS[key] ? splitAliases(ALIAS[key]) : []);
       return { key, name, feature: f, center: d3.geoCentroid(main), search };
-    }).sort((a, b) => a.name.localeCompare(b.name));
+    }).concat(MICRO.filter((m) => !feats.some((f) => f.id === m[0])).map(([key, name, lat, lon, al]) =>
+      ({ key, name, feature: null, center: [lon, lat], search: [norm(name)].concat(al ? al.split("|") : []) })))
+      .sort((a, b) => a.name.localeCompare(b.name));
     byKey = new Map(countries.map((c) => [c.key, c]));
     answerPool = Object.keys(CASES).filter((k) => byKey.has(k)).sort();
     cityList = CITIES.map((c) => ({ key: "city:" + c[0], name: c[0] + ", " + c[1], short: c[0], center: [c[3], c[2]], city: c, search: [norm(c[0])] })).sort((a, b) => a.name.localeCompare(b.name));

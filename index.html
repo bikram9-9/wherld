@@ -442,6 +442,11 @@ function flyTo(lonlat) {
 (function interactions() {
   // Drag follows the finger 1:1, redraws once per frame, and coasts after release.
   let last = null, lastT = 0, vx = 0, vy = 0, coasting = false;
+  const MAX_ZOOM = 12, pts = new Map();
+  let zoomTarget = 1, pinch = 0;
+  const clampZ = (z) => Math.max(1, Math.min(MAX_ZOOM, z));
+  const applyZoom = () => { projection.scale((size / 2 - 14) * zoom); dirty = true; };
+  const spread = () => { const [a, b] = [...pts.values()]; return Math.hypot(a[0] - b[0], a[1] - b[1]); };
   const turn = (dx, dy) => {
     const r = projection.rotate(), k = 180 / (Math.PI * projection.scale());
     projection.rotate([r[0] + dx * k, Math.max(-85, Math.min(85, r[1] - dy * k))]);
@@ -449,10 +454,14 @@ function flyTo(lonlat) {
   };
   canvas.addEventListener("pointerdown", (e) => {
     spinning = false; coasting = false; vx = vy = 0; if (flyTimer) flyTimer.stop();
+    pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2) { pinch = spread(); last = null; return; }
     last = [e.clientX, e.clientY]; lastT = performance.now();
     canvas.setPointerCapture(e.pointerId); canvas.classList.add("dragging");
   });
   canvas.addEventListener("pointermove", (e) => {
+    if (pts.has(e.pointerId)) pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2) { const d = spread(); if (pinch > 0) { zoom = zoomTarget = clampZ(zoom * d / pinch); applyZoom(); } pinch = d; return; }
     if (!last) return;
     const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e], p = evs.length ? evs[evs.length - 1] : e;
     const dx = p.clientX - last[0], dy = p.clientY - last[1], now = performance.now(), dt = Math.max(1, now - lastT);
@@ -460,21 +469,30 @@ function flyTo(lonlat) {
     last = [p.clientX, p.clientY]; lastT = now;
     turn(dx, dy);
   });
-  const end = () => {
+  const end = (e) => {
+    pts.delete(e.pointerId);
+    if (pts.size === 1) { last = [...pts.values()][0].slice(); lastT = performance.now(); vx = vy = 0; return; }
     if (!last) return;
     last = null; canvas.classList.remove("dragging");
     if (performance.now() - lastT > 80) vx = vy = 0;
     coasting = !reduceMotion && Math.hypot(vx, vy) > 0.05;
   };
   canvas.addEventListener("pointerup", end); canvas.addEventListener("pointercancel", end);
-  const setZoom = (z) => { zoom = Math.max(1, Math.min(5, z)); resize(); };
-  $("zin").addEventListener("click", () => setZoom(zoom * 1.5));
-  $("zout").addEventListener("click", () => setZoom(zoom / 1.5));
-  canvas.addEventListener("wheel", (e) => { e.preventDefault(); setZoom(zoom * Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+  // Zoom glides toward a target instead of jumping, and goes up to 12x.
+  const zoomBy = (f) => { zoomTarget = clampZ(zoomTarget * f); if (reduceMotion) { zoom = zoomTarget; applyZoom(); } };
+  $("zin").addEventListener("click", () => zoomBy(1.7));
+  $("zout").addEventListener("click", () => zoomBy(1 / 1.7));
+  canvas.addEventListener("dblclick", () => zoomBy(1.7));
+  canvas.addEventListener("wheel", (e) => {
+    e.preventDefault(); spinning = false;
+    const px = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+    zoomBy(Math.exp(-px * (e.ctrlKey ? 0.012 : 0.003)));
+  }, { passive: false });
   new ResizeObserver(resize).observe(canvas);
   let prev = 0;
   d3.timer((t) => {
     const dt = Math.min(50, t - prev); prev = t;
+    if (Math.abs(zoomTarget - zoom) > 0.0005 * zoom) { zoom += (zoomTarget - zoom) * Math.min(1, dt / 110); applyZoom(); }
     if (spinning) { const r = projection.rotate(); projection.rotate([r[0] + dt * 0.006, r[1]]); dirty = true; }
     if (coasting) {
       turn(vx * dt, vy * dt);

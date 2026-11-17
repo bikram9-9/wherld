@@ -4,25 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wherld</title>
+<meta name="description" content="Wherld: race a rival to name the mystery country. Live 1 v 1 matches, ratings and coins.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* Layout idea: a detective's night desk. The lit globe is the hero on the left;
-   the paper case file (clues, redacted until earned) sits on the right. One theme by choice. */
+/* Layout idea: a detective's night desk. The lit globe owns the stage; the lobby card (home)
+   or the paper case file (in play) floats in a corner. One theme by choice. */
 :root {
   color-scheme: dark;
-  --ink: #0e1a25;          /* desk */
-  --panel: #152634;        /* raised surfaces */
-  --line: #2a4155;         /* hairlines */
+  --ink: #0e1a25;
+  --panel: #152634;
+  --line: #2a4155;
   --text: #e6ecf1;
   --muted: #8ea3b5;
-  --paper: #ebe2cc;        /* case file */
+  --paper: #ebe2cc;
   --paper-ink: #1c2733;
   --paper-line: #cdbf9f;
-  --amber: #f2a23a;        /* accent: desk lamp */
-  --hot: #e2502e;
-  --cold: #7fb4d6;
+  --amber: #f2a23a;
+  --far: #0a2a8f;
+  --near: #c20d1a;
   --solved: #3fae6b;
   --font-display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
   --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -30,84 +31,114 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-body {
-  background: var(--ink);
-  color: var(--text);
-  font-family: var(--font-body);
-  font-size: 16px;
-  line-height: 1.45;
-}
+body { background: var(--ink); color: var(--text); font-family: var(--font-body); font-size: 16px; line-height: 1.45; }
 button { font: inherit; color: inherit; cursor: pointer; }
 :focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+[hidden] { display: none !important; }
 
-.wrap { max-width: 1280px; margin: 0 auto; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 14px; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; }
+.brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.brand button { border: 0; background: none; padding: 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(26px, 4vw, 36px); line-height: 1; letter-spacing: -0.02em; }
+.brand button span { color: var(--amber); }
+.brand p { margin: 0; color: var(--muted); font-size: 13px; }
+.chips { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 13px; }
+.chips span { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 12px; color: var(--muted); white-space: nowrap; }
+.chips b { color: var(--text); font-weight: 600; }
+.chips .coin b { color: var(--amber); }
 
-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
-.brand h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(26px, 4vw, 36px); line-height: 1; margin: 0; letter-spacing: -0.02em; }
-.brand h1 span { color: var(--amber); }
-.brand p { margin: 4px 0 0; color: var(--muted); font-size: 13px; max-width: 64ch; }
-@media (max-width: 820px) { .brand p { display: none; } }
-.controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--panel); }
-.seg button { border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; font-size: 14px; font-weight: 500; color: var(--muted); }
-.seg button[aria-pressed="true"] { background: var(--amber); color: #1b1304; }
-.streak { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
-.streak b { color: var(--text); font-weight: 600; }
+main.stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 
-main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr); gap: 28px; align-items: start; }
+/* Versus bar (live matches) */
+.versus { width: 100%; max-width: min(540px, calc(100% - 540px)); min-width: 300px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 14px; }
+.versus .side { display: flex; flex-direction: column; min-width: 0; }
+.versus .side.opp { align-items: flex-end; text-align: right; }
+.versus b { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.versus small { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.bot-tag { font-family: var(--font-mono); font-size: 10px; border: 1px solid var(--muted); border-radius: 4px; padding: 0 4px; margin-left: 6px; color: var(--muted); vertical-align: 1px; }
+.clock { font-family: var(--font-mono); font-weight: 600; font-size: 22px; font-variant-numeric: tabular-nums; color: var(--amber); min-width: 5ch; text-align: center; }
+.clock.low { color: #ff6b5e; }
+.clock.pre { font-size: 14px; color: var(--text); }
+.pips { display: flex; gap: 4px; margin-top: 3px; }
+.pips i { width: 11px; height: 11px; border-radius: 50%; border: 1px solid var(--line); background: transparent; }
 
-/* Globe column */
-.globe-col { display: flex; flex-direction: column; gap: 10px; }
-.guessbar { display: flex; flex-direction: column; gap: 6px; }
-.globe-box { position: relative; width: 100%; max-width: min(560px, max(230px, 100dvh - 215px)); margin: 0 auto; aspect-ratio: 1; }
-@media (max-width: 820px) { .globe-box { max-width: min(100%, max(220px, 46dvh)); } }
-#globe { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; border-radius: 50%; }
-#globe.dragging { cursor: grabbing; }
-.toast { position: absolute; top: 6px; left: 50%; z-index: 3; transform: translate(-50%, -8px); opacity: 0; pointer-events: none; white-space: nowrap; font-family: var(--font-display); font-weight: 800; font-size: 18px; padding: 6px 16px; border-radius: 999px; background: var(--panel); color: var(--text); border: 2px solid var(--line); box-shadow: 0 10px 24px rgba(0,0,0,0.45); transition: opacity 0.25s, transform 0.25s; }
-.toast.show { opacity: 1; transform: translate(-50%, 0); }
-.toast.warmer { background: #c20d1a; border-color: #ffb199; color: #fff; }
-.toast.colder { background: #0a2a8f; border-color: #a9cbff; color: #fff; }
-.toast.same { background: var(--panel); border-color: var(--muted); color: var(--text); }
-@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
-.zoom { position: absolute; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 6px; }
-.zoom button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); font-size: 20px; line-height: 1; }
-.zoom button:hover { border-color: var(--amber); }
-.legend { position: absolute; left: 0; bottom: 4px; display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
-.legend i { display: block; width: 84px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #0a2a8f, #9fc3ff 50%, #ffada3 50%, #c20d1a); }
-
-.guess-form { position: relative; display: flex; gap: 8px; max-width: 560px; width: 100%; margin: 0 auto; }
-.guess-form input { flex: 1; min-width: 0; font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+/* Guess bar */
+.guessbar { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 4px; }
+.guess-form { position: relative; display: flex; gap: 8px; width: 100%; }
+.guess-form input { flex: 1; min-width: 0; font: inherit; font-size: 14px; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; }
 .guess-form input::placeholder { color: var(--muted); }
 .guess-form input:focus { outline: none; border-color: var(--amber); }
-.guess-form button { border: 0; border-radius: 10px; padding: 0 20px; background: var(--amber); color: #1b1304; font-weight: 600; }
+.guess-form button { border: 0; border-radius: 8px; padding: 0 14px; font-size: 14px; background: var(--amber); color: #1b1304; font-weight: 600; }
 .guess-form button:disabled, .guess-form input:disabled { opacity: 0.5; cursor: not-allowed; }
-#suggest { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5; margin: 0; padding: 4px; list-style: none; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; max-height: 240px; overflow-y: auto; box-shadow: 0 12px 30px rgba(0,0,0,0.45); }
-#suggest[hidden] { display: none; }
+#suggest { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 8; margin: 0; padding: 4px; list-style: none; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; max-height: 240px; overflow-y: auto; box-shadow: 0 12px 30px rgba(0,0,0,0.45); }
 #suggest li { padding: 8px 10px; border-radius: 6px; cursor: pointer; }
 #suggest li[aria-selected="true"], #suggest li:hover { background: #20384b; }
 #suggest li.used { color: var(--muted); text-decoration: line-through; }
-.msg { min-height: 1.4em; margin: 0 auto; max-width: 560px; width: 100%; font-size: 14px; color: var(--text); }
+.msg { min-height: 1.4em; margin: 0; font-size: 13px; text-align: center; color: var(--text); }
 .msg b { color: var(--amber); font-weight: 600; }
 
+/* Globe */
+.globe-box { position: relative; width: 100%; height: max(260px, calc(100dvh - var(--chrome, 212px))); overflow: hidden; border-radius: 14px; }
+#globe { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+#globe.dragging { cursor: grabbing; }
+.zoom { position: absolute; right: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 6px; }
+.zoom button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); font-size: 20px; line-height: 1; }
+.zoom button:hover { border-color: var(--amber); }
+.legend { position: absolute; left: 8px; bottom: 8px; display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.legend i { display: block; width: 84px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #0a2a8f, #9fc3ff 50%, #ffada3 50%, #c20d1a); }
+.toast { position: absolute; top: 6px; left: 50%; z-index: 3; transform: translate(-50%, -8px); opacity: 0; pointer-events: none; white-space: nowrap; font-family: var(--font-display); font-weight: 800; font-size: 18px; padding: 6px 16px; border-radius: 999px; background: var(--panel); color: var(--text); border: 2px solid var(--muted); box-shadow: 0 10px 24px rgba(0,0,0,0.45); transition: opacity 0.25s, transform 0.25s; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.warmer { background: var(--near); border-color: #ffb199; color: #fff; }
+.toast.colder { background: var(--far); border-color: #a9cbff; color: #fff; }
+.toast.good { background: var(--solved); border-color: #b9f0cf; color: #06200f; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+/* Lobby (home) */
+.lobby { position: absolute; top: 8px; right: 0; z-index: 4; width: 340px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+.lobby h2 { font-family: var(--font-display); font-weight: 800; font-size: 26px; line-height: 1.05; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.lobby p { margin: 0; color: var(--muted); font-size: 14px; }
+.who { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+.who b { font-size: 16px; }
+.who small { display: block; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.link { border: 0; background: none; padding: 0; color: var(--amber); font-size: 13px; text-decoration: underline; }
+.btn { border: 1px solid var(--line); background: transparent; border-radius: 10px; padding: 10px 14px; font-weight: 600; text-align: center; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { border: 0; background: var(--amber); color: #1b1304; padding: 14px; font-family: var(--font-display); font-weight: 800; font-size: 20px; }
+.btn.primary small { display: block; font-family: var(--font-mono); font-weight: 500; font-size: 11px; margin-top: 2px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn small { display: block; font-family: var(--font-mono); font-weight: 400; font-size: 11px; color: var(--muted); }
+.btn.primary small { color: #4a3406; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lobby label { font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+.lobby input { font: inherit; color: var(--text); background: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; }
+.lobby input:focus { outline: none; border-color: var(--amber); }
+.board h3 { font-family: var(--font-mono); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 6px; }
+.board ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 190px; overflow-y: auto; }
+.board li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; font-size: 14px; padding: 3px 0; }
+.board li span:first-child { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.board li span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board li span:last-child { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.board .none { color: var(--muted); font-size: 13px; }
+.searching { align-items: center; text-align: center; }
+.pulse { width: 54px; height: 54px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--amber); animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+.note { font-size: 13px; color: #ffb199; }
+
 /* Case file */
-.file-col { display: flex; flex-direction: column; gap: 14px; }
-.casefile { position: relative; background: var(--paper); color: var(--paper-ink); border-radius: 4px 14px 4px 4px; padding: 10px 14px 2px; box-shadow: 0 18px 40px rgba(0,0,0,0.4); }
-.casefile::before { content: ""; position: absolute; top: -10px; left: 18px; width: 120px; height: 12px; background: var(--paper); border-radius: 6px 6px 0 0; }
+.casefile { position: absolute; top: 14px; right: 0; z-index: 4; width: 246px; min-height: 246px; transform: rotate(1.4deg); background: var(--paper); color: var(--paper-ink); border-radius: 3px 12px 3px 3px; padding: 10px 14px 2px; box-shadow: 5px 5px 0 -1px #cdbf9f, 9px 9px 0 -2px #b9aa87, 0 20px 40px rgba(0,0,0,0.5); }
+.casefile::before { content: ""; position: absolute; top: -10px; left: 12px; width: 96px; height: 12px; background: var(--paper); border-radius: 6px 6px 0 0; }
 .cf-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-bottom: 6px; border-bottom: 2px solid var(--paper-ink); }
-.cf-head h2 { font-family: var(--font-display); font-weight: 800; font-size: 16px; margin: 0; letter-spacing: -0.01em; }
+.cf-head h2 { font-family: var(--font-display); font-weight: 800; font-size: 16px; margin: 0; }
 .cf-head span { font-family: var(--font-mono); font-size: 12px; }
 .clues { list-style: none; margin: 0; padding: 0; }
-.clues li { display: grid; grid-template-columns: 20px 100px minmax(0, 1fr); gap: 8px; align-items: center; min-height: 30px; padding: 4px 0; border-bottom: 1px dashed var(--paper-line); }
+.clues li { display: grid; grid-template-columns: 18px 72px minmax(0, 1fr); gap: 7px; align-items: center; min-height: 30px; padding: 4px 0; border-bottom: 1px dashed var(--paper-line); }
 .clues li:last-child { border-bottom: 0; }
 .clues .n { font-family: var(--font-mono); font-size: 11px; font-weight: 600; width: 18px; height: 18px; border: 1.5px solid var(--paper-ink); border-radius: 50%; display: grid; place-items: center; }
-.clues .k { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
-.clues .v { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
-.locknote { display: none; margin: 0; padding: 6px 0 8px; font-family: var(--font-mono); font-size: 12px; opacity: 0.75; }
-@media (max-width: 820px) { .locknote:not([hidden]) { display: block; } }
+.clues .k { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; }
+.clues .v { font-weight: 600; font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
 .clues li.locked .n, .clues li.locked .k { opacity: 0.55; }
-.redact { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .redact i { display: block; height: 12px; background: var(--paper-ink); border-radius: 2px; }
-.redact small { font-family: var(--font-mono); font-size: 11px; opacity: 0.7; }
 .clues li.fresh .v { animation: reveal 0.5s ease-out; }
 @keyframes reveal { from { background: var(--paper-ink); color: transparent; } to { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .clues li.fresh .v { animation: none; } }
@@ -115,24 +146,24 @@ main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr)
 .swatches span { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; }
 .swatches i { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--paper-ink); }
 #shape { width: 92px; height: 62px; display: block; }
-@media (max-width: 440px) { .clues li { grid-template-columns: 20px 92px minmax(0, 1fr); gap: 8px; } .clues .k { font-size: 11px; letter-spacing: 0.02em; } }
-
+.locknote { display: none; margin: 0; padding: 6px 0 8px; font-family: var(--font-mono); font-size: 12px; opacity: 0.75; }
 .verdict { margin: 2px 0 8px; padding: 10px 0 4px; border-top: 2px solid var(--paper-ink); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
-.verdict #scoreline, .verdict .row, .verdict #sharebox { flex-basis: 100%; }
-.verdict[hidden] { display: none; }
-.stamp { font-family: var(--font-display); font-weight: 800; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 12px; border: 3px solid currentColor; border-radius: 6px; transform: rotate(-3deg); }
-.stamp.win { color: #1f7a45; }
-.stamp.loss { color: #b23a20; }
 .verdict p { margin: 0; }
+.verdict #scoreline, .verdict .row, .verdict #sharebox, .verdict #gains { flex-basis: 100%; }
+.stamp { font-family: var(--font-display); font-weight: 800; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 12px; border: 3px solid currentColor; border-radius: 6px; transform: rotate(-3deg); }
+.stamp.win { color: #1f7a45; } .stamp.loss { color: #b23a20; } .stamp.draw { color: #4b5563; }
 .verdict .ans { font-family: var(--font-display); font-weight: 800; font-size: 20px; line-height: 1.1; }
-.verdict .row { display: flex; flex-wrap: wrap; gap: 8px; }
-.verdict button { border: 1.5px solid var(--paper-ink); background: transparent; color: var(--paper-ink); border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: 14px; }
+.verdict #scoreline { font-size: 13px; }
+#gains { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+.verdict .row { display: flex; flex-wrap: wrap; gap: 6px; }
+.verdict button { border: 1.5px solid var(--paper-ink); background: transparent; color: var(--paper-ink); border-radius: 8px; padding: 6px 10px; font-weight: 600; font-size: 13px; }
 .verdict button.primary { background: var(--paper-ink); color: var(--paper); }
-#sharebox { width: 100%; font-family: var(--font-mono); font-size: 13px; background: #f6f0e0; color: var(--paper-ink); border: 1px solid var(--paper-line); border-radius: 6px; padding: 8px; resize: none; }
-#sharebox[hidden] { display: none; }
+#sharebox { width: 100%; font-family: var(--font-mono); font-size: 12px; background: #f6f0e0; color: var(--paper-ink); border: 1px solid var(--paper-line); border-radius: 6px; padding: 8px; resize: none; }
 
+/* Guess list */
+.guesses { position: absolute; top: 4px; left: 0; z-index: 4; width: 220px; }
 .guesses h3 { font-family: var(--font-mono); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 6px; display: flex; justify-content: space-between; }
-.guesses ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.guesses ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .guesses li button { display: inline-flex; gap: 8px; align-items: center; text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px 5px 8px; font-size: 14px; }
 .guesses li button:hover { border-color: var(--muted); }
 .guesses .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
@@ -141,91 +172,123 @@ main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr)
 .guesses .ar { font-size: 15px; }
 .guesses .empty { color: var(--muted); font-size: 13px; }
 
-/* Stage: the globe owns the screen; the case file and guess list float in its empty corners */
-main.stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.guessbar { width: 100%; max-width: 520px; }
-.globe-box { max-width: none; aspect-ratio: auto; height: max(260px, 100dvh - 212px); overflow: hidden; border-radius: 14px; }
-#globe { border-radius: 0; }
-.legend { left: 8px; bottom: 8px; }
-.zoom { right: 8px; bottom: 8px; }
-.casefile { position: absolute; top: 14px; right: 0; z-index: 4; width: 246px; min-height: 246px; transform: rotate(1.4deg); border-radius: 3px 12px 3px 3px; box-shadow: 5px 5px 0 -1px #cdbf9f, 9px 9px 0 -2px #b9aa87, 0 20px 40px rgba(0,0,0,0.5); }
-.casefile::before { width: 96px; left: 12px; }
-.clues li { grid-template-columns: 18px 72px minmax(0, 1fr); gap: 7px; }
-.clues .k { font-size: 10px; letter-spacing: 0.03em; }
-.clues .v { font-size: 13px; line-height: 1.25; }
-.redact small { display: none; }
-.guesses { position: absolute; top: 4px; left: 0; z-index: 4; width: 220px; }
-.guesses ol { flex-direction: column; align-items: flex-start; }
-.guessbar { max-width: 340px; gap: 4px; }
-.guess-form input { padding: 7px 12px; font-size: 14px; border-radius: 8px; }
-.guess-form button { padding: 0 14px; font-size: 14px; border-radius: 8px; }
-.msg { font-size: 13px; text-align: center; }
+/* Which pieces show in which view */
+body[data-view="home"] .guessbar, body[data-view="home"] .casefile, body[data-view="home"] .guesses, body[data-view="home"] .legend, body[data-view="home"] .versus { display: none; }
+body[data-view="play"] .lobby { display: none; }
+body[data-view="home"] { --chrome: 96px; }
+body[data-live="1"] { --chrome: 268px; }
+
 @media (max-width: 900px) {
+  .brand p { display: none; }
+  .versus { max-width: none; min-width: 0; }
   .guessbar { position: sticky; top: 0; z-index: 6; max-width: none; background: var(--ink); padding: 8px 0 4px; box-shadow: 0 12px 16px -8px var(--ink); }
   .globe-box { height: min(calc(100vw - 32px), 62dvh); }
-  .guesses { position: static; }
-  .casefile { position: relative; top: 0; }
-  .casefile, .guesses { transform: none; width: 100%; max-width: 440px; min-height: 0; }
-  .casefile { margin-top: 14px; }
-  .guesses ol { flex-direction: row; }
+  body[data-view="home"] .globe-box { height: min(calc(100vw - 32px), 44dvh); }
+  .lobby { position: static; width: 100%; max-width: 440px; }
+  .guesses { position: static; width: 100%; max-width: 440px; }
+  .casefile { position: relative; top: 0; transform: none; width: 100%; max-width: 440px; min-height: 0; margin-top: 14px; }
+  .guesses ol { flex-direction: row; flex-wrap: wrap; }
   .clues li.locked { display: none; }
   .locknote:not([hidden]) { display: block; }
 }
 </style>
 </head>
-<body>
+<body data-view="home">
 <div class="wrap">
   <header>
     <div class="brand">
-      <h1>Wher<span>ld</span></h1>
-      <p>Where in the world? One mystery country, six guesses. Every miss unlocks a new clue and colors the globe by how close you were.</p>
+      <button type="button" id="home" aria-label="Wherld home">Wher<span>ld</span></button>
+      <p>Where in the world? Name the mystery country before your rival does.</p>
     </div>
-    <div class="controls">
-      <div class="seg" role="group" aria-label="Game mode">
-        <button type="button" id="mode-daily" aria-pressed="true">Daily case</button>
-        <button type="button" id="mode-practice" aria-pressed="false">Practice</button>
-      </div>
-      <div class="streak" id="streak"></div>
+    <div class="chips" id="chips" hidden>
+      <span>Rating <b id="chip-rating"></b></span>
+      <span class="coin">Coins <b id="chip-coins"></b></span>
     </div>
   </header>
 
   <main class="stage">
-      <div class="guessbar">
+    <div class="versus" id="versus" hidden>
+      <div class="side"><b id="vs-me"></b><small id="vs-me-rt"></small></div>
+      <div class="clock" id="clock" role="timer" aria-live="off">2:00</div>
+      <div class="side opp"><span><b id="vs-opp"></b><span class="bot-tag" id="vs-bot" hidden>BOT</span></span><small id="vs-opp-rt"></small><span class="pips" id="pips" aria-label="Rival's guesses"></span></div>
+    </div>
+
+    <div class="guessbar">
       <form class="guess-form" id="form" autocomplete="off">
         <input id="guess" type="text" placeholder="Type a country" aria-label="Guess a country" role="combobox" aria-expanded="false" aria-controls="suggest" aria-autocomplete="list" spellcheck="false">
         <button type="submit" id="go">Guess</button>
         <ul id="suggest" role="listbox" hidden></ul>
       </form>
       <p class="msg" id="msg" role="status" aria-live="polite"></p>
+    </div>
+
+    <div class="globe-box">
+      <canvas id="globe" aria-label="Globe. Drag to spin, scroll or pinch to zoom. Guessed countries are colored by distance from the answer."></canvas>
+      <div class="toast" id="toast" aria-hidden="true"></div>
+      <div class="legend"><span>far</span><i></i><span>close</span></div>
+      <div class="zoom">
+        <button type="button" id="zin" aria-label="Zoom in">+</button>
+        <button type="button" id="zout" aria-label="Zoom out">&minus;</button>
       </div>
-      <div class="globe-box">
-        <div class="toast" id="toast" aria-hidden="true"></div>
-        <canvas id="globe" aria-label="Globe. Drag to spin. Guessed countries are colored by distance from the answer."></canvas>
-        <div class="legend"><span>far</span><i></i><span>close</span></div>
-        <div class="zoom">
-          <button type="button" id="zin" aria-label="Zoom in">+</button>
-          <button type="button" id="zout" aria-label="Zoom out">&minus;</button>
+    </div>
+
+    <section class="lobby" id="lobby" aria-label="Lobby">
+      <div id="lb-menu" style="display:contents">
+        <h2>Race a rival to name the country.</h2>
+        <div class="who" id="who" hidden>
+          <div><b id="who-name"></b><small id="who-stats"></small></div>
+          <button type="button" class="link" id="rename">Change name</button>
+        </div>
+        <button type="button" class="btn primary" id="play-online">Play online<small>1 v 1 race · 2 minutes · rated</small></button>
+        <p class="note" id="offline" hidden>Online play can't connect from here. Play ranked matches at wherld.com.</p>
+        <div class="two">
+          <button type="button" class="btn" id="play-daily">Daily case<small id="daily-sub">One a day</small></button>
+          <button type="button" class="btn" id="play-practice">Practice<small>Unlimited, unrated</small></button>
+        </div>
+        <div class="board">
+          <h3>Top players</h3>
+          <ol id="board"><li class="none">No ranked games yet. Be the first on the board.</li></ol>
         </div>
       </div>
-      <div class="casefile">
-        <div class="cf-head"><h2>Case file</h2><span id="caseno"></span></div>
-        <ol class="clues" id="clues"></ol>
-        <p class="locknote" id="locknote"></p>
-        <div class="verdict" id="verdict" hidden>
-          <div class="stamp" id="stamp"></div>
-          <p class="ans" id="ans"></p>
-          <p id="scoreline"></p>
-          <div class="row">
-            <button type="button" class="primary" id="copy">Copy result</button>
-            <button type="button" id="again">Play a practice round</button>
-          </div>
-          <textarea id="sharebox" rows="3" readonly hidden aria-label="Your result, ready to copy"></textarea>
+      <form id="lb-name" hidden style="display:contents">
+        <h2>Pick a nickname</h2>
+        <p>This is the name rivals see. 3 to 16 letters or numbers.</p>
+        <label for="nick">Nickname<input id="nick" type="text" maxlength="16" autocomplete="nickname" spellcheck="false"></label>
+        <button type="submit" class="btn primary" id="nick-save">Save and play</button>
+        <button type="button" class="btn" id="nick-cancel">Back</button>
+        <p class="note" id="nick-err" hidden></p>
+      </form>
+      <div id="lb-search" class="searching" hidden style="display:contents">
+        <h2>Finding an opponent</h2>
+        <div class="pulse" style="align-self:center" aria-hidden="true"></div>
+        <p id="search-time" style="text-align:center">0:00</p>
+        <p style="text-align:center">If nobody is around after 10 seconds, you'll face a bot at your level.</p>
+        <button type="button" class="btn" id="search-cancel">Cancel</button>
+      </div>
+    </section>
+
+    <div class="casefile">
+      <div class="cf-head"><h2>Case file</h2><span id="caseno"></span></div>
+      <ol class="clues" id="clues"></ol>
+      <p class="locknote" id="locknote"></p>
+      <div class="verdict" id="verdict" hidden>
+        <div class="stamp" id="stamp"></div>
+        <p class="ans" id="ans"></p>
+        <p id="scoreline"></p>
+        <p id="gains" hidden></p>
+        <div class="row">
+          <button type="button" class="primary" id="again">Play again</button>
+          <button type="button" id="copy">Copy result</button>
+          <button type="button" id="to-home">Home</button>
         </div>
+        <textarea id="sharebox" rows="3" readonly hidden aria-label="Your result, ready to copy"></textarea>
       </div>
-      <div class="guesses">
-        <h3><span>Your guesses</span><span id="left"></span></h3>
-        <ol id="glist"></ol>
-      </div>
+    </div>
+
+    <div class="guesses">
+      <h3><span>Your guesses</span><span id="left"></span></h3>
+      <ol id="glist"></ol>
+    </div>
   </main>
 </div>
 
@@ -233,7 +296,8 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
 <script>
 "use strict";
-/* ---------- Clue data: id -> [population bucket, continent, main language, famous dish, flag colors] ---------- */
+/* ---------- Solo clue data: id -> [population bucket, continent, main language, famous dish, flag colors].
+   Ranked matches never use this: the server picks the country and checks every guess. ---------- */
 const POP = { a: "Under 1 million", b: "1 to 5 million", c: "5 to 10 million", d: "10 to 20 million", e: "20 to 50 million", f: "50 to 100 million", g: "100 to 200 million", h: "Over 200 million" };
 const NA = "North America", SA = "South America", EU = "Europe", AS = "Asia", AF = "Africa", OC = "Oceania";
 const CASES = {
@@ -352,12 +416,26 @@ const MAX_GUESSES = 6;
 const CLUE_LABELS = ["Population", "Continent", "Main language", "Famous dish", "Flag colors", "Outline"];
 const EPOCH = new Date(2026, 10, 16); // daily case #1
 
+/* ---------- Server (Supabase). The key below is the public one, safe to ship. ---------- */
+const SB_URL = "https://wyvstvxrjdcmvmmdvunp.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dnN0dnhyamRjbXZtbWR2dW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4ODEyMjEsImV4cCI6MjExMDQ1NzIyMX0.fIVQecib_eAua7j3bVBY5SNoBUkyuGhCyuyy0Y4YNRs";
+async function rpc(fn, args) {
+  let r;
+  try {
+    r = await fetch(SB_URL + "/rest/v1/rpc/" + fn, { method: "POST", headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, "Content-Type": "application/json" }, body: JSON.stringify(args || {}) });
+  } catch (e) { const err = new Error("Can't reach the game server. Check your connection."); err.network = true; throw err; }
+  const j = await r.json().catch(() => null);
+  if (!r.ok) throw new Error((j && j.message) || "The game server had a problem. Try again.");
+  return j;
+}
+
 /* ---------- Helpers ---------- */
 const $ = (id) => document.getElementById(id);
 const norm = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+const mem = {};
 const store = {
-  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } }
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return mem[k] ?? null; } },
+  set(k, v) { mem[k] = v; try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } }
 };
 function mulberry(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const todayIndex = () => { const n = new Date(); return Math.round((new Date(n.getFullYear(), n.getMonth(), n.getDate()) - EPOCH) / 864e5); };
@@ -365,12 +443,16 @@ const coldRamp = d3.interpolateRgb("#0a2a8f", "#9fc3ff"), warmRamp = d3.interpol
 const heat = (t) => t < 0.5 ? coldRamp(t * 2) : warmRamp((t - 0.5) * 2);
 const heatFor = (mi) => heat(1 - Math.min(mi, 8000) / 8000);
 const ARROWS = ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"];
+const arrow = (deg) => ARROWS[Math.round(deg / 45) % 8];
+const miles = (d) => Math.round(d).toLocaleString("en-US") + " mi";
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-let countries = [];           // {key, name, feature, center, search}
-let byKey = new Map();
-let answerPool = [];
-let state = null;             // {mode, day, answer, guesses:[keys], fresh}
+let countries = [], byKey = new Map(), answerPool = [], SHAPES = {};
+let view = "home";            // "home" | "play"
+let solo = null;              // {mode: "daily"|"practice", day, answer, guesses: [keys], fresh}
+let live = null;              // {id, s: server state, skew, fresh}
+let profile = null, online = true, lobby = "menu", nameThenPlay = false;
+let M = { kind: "none", guesses: [], clues: [], done: false, won: false, answer: null, fresh: -1 };
 
 /* ---------- Globe ---------- */
 const canvas = $("globe"), ctx = canvas.getContext("2d");
@@ -378,7 +460,7 @@ const projection = d3.geoOrthographic().clipAngle(90).precision(0.6);
 const path = d3.geoPath(projection, ctx);
 const graticule = d3.geoGraticule10();
 let landGeo = null, borderGeo = null, dirty = false;
-let size = 0, W = 0, H = 0, zoom = 1, spinning = !reduceMotion, flyTimer = null, pulseKey = null, pulseStart = 0;
+let size = 0, W = 0, H = 0, zoom = 1, zoomTarget = 1, spinning = !reduceMotion, flyTimer = null, pulseKey = null, pulseStart = 0;
 projection.rotate([20, -18]);
 
 function resize() {
@@ -393,59 +475,48 @@ function draw() {
   if (!size) return;
   ctx.clearRect(0, 0, W, H);
   const R = projection.scale(), cx = W / 2, cy = H / 2;
-  ctx.save();
-  // ocean with lamp-lit falloff
   const g = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.4, R * 0.1, cx, cy, R);
   g.addColorStop(0, "#2c5a78"); g.addColorStop(1, "#16303f");
   ctx.beginPath(); path({ type: "Sphere" }); ctx.fillStyle = g; ctx.fill();
   ctx.beginPath(); path(graticule); ctx.strokeStyle = "rgba(255,255,255,0.07)"; ctx.lineWidth = 1; ctx.stroke();
-  const done = isDone(), guessed = new Map();
-  if (state) state.guesses.forEach((k) => guessed.set(k, heatFor(distance(k, state.answer))));
   if (landGeo) {
     ctx.beginPath(); path(landGeo); ctx.fillStyle = "#b7b6a4"; ctx.fill();
     ctx.beginPath(); path(borderGeo); ctx.strokeStyle = "rgba(14,26,37,0.5)"; ctx.lineWidth = 0.6; ctx.stroke();
   }
-  // guessed countries: whole shape takes the distance color, drawn on top with a firm outline
-  const marks = state ? [...state.guesses] : [];
-  if (state && done && !marks.includes(state.answer)) marks.push(state.answer);
+  // guessed countries: whole shape takes the distance color; the answer turns green once revealed
+  const marks = M.guesses.map((x) => ({ key: x.key, color: x.ok ? "#3fae6b" : heatFor(x.d) }));
+  if (M.done && M.answer && !marks.some((x) => x.key === M.answer)) marks.push({ key: M.answer, color: "#3fae6b" });
   const rot = projection.rotate(), now = performance.now();
-  for (const k of marks) {
-    const cty = byKey.get(k), color = (done && k === state.answer) ? "#3fae6b" : guessed.get(k);
-    const pulsing = k === pulseKey && now - pulseStart < 1600;
+  for (const mk of marks) {
+    const cty = byKey.get(mk.key); if (!cty) continue;
     ctx.beginPath(); path(cty.feature);
-    ctx.fillStyle = color; ctx.fill();
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = "#0e1a25"; ctx.lineWidth = 1.6; ctx.stroke();
-    if (pulsing) { ctx.strokeStyle = "rgba(255,255,255," + (0.35 + 0.65 * Math.abs(Math.sin((now - pulseStart) / 160))) + ")"; ctx.lineWidth = 2.5; ctx.stroke(); }
-    // tiny countries get a dot in the same color so they stay findable
+    ctx.fillStyle = mk.color; ctx.fill();
+    ctx.lineJoin = "round"; ctx.strokeStyle = "#0e1a25"; ctx.lineWidth = 1.6; ctx.stroke();
+    if (mk.key === pulseKey && now - pulseStart < 1600) { ctx.strokeStyle = "rgba(255,255,255," + (0.35 + 0.65 * Math.abs(Math.sin((now - pulseStart) / 160))) + ")"; ctx.lineWidth = 2.5; ctx.stroke(); }
     if (path.area(cty.feature) < 90 && d3.geoDistance(cty.center, [-rot[0], -rot[1]]) < Math.PI / 2 - 0.02) {
       const p = projection(cty.center);
       ctx.beginPath(); ctx.arc(p[0], p[1], 5, 0, Math.PI * 2);
-      ctx.fillStyle = color; ctx.fill(); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = mk.color; ctx.fill(); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke();
     }
   }
   ctx.beginPath(); path({ type: "Sphere" }); ctx.strokeStyle = "rgba(242,162,58,0.35)"; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.restore();
 }
 function flyTo(lonlat) {
   spinning = false;
   if (flyTimer) flyTimer.stop();
   const from = projection.rotate(), to = [-lonlat[0], -lonlat[1] * 0.85];
-  let dl = ((to[0] - from[0] + 540) % 360) - 180;
+  const dl = ((to[0] - from[0] + 540) % 360) - 180;
   if (reduceMotion) { projection.rotate([from[0] + dl, to[1]]); draw(); return; }
-  const ease = d3.easeCubicInOut;
   flyTimer = d3.timer((t) => {
-    const k = ease(Math.min(1, t / 900));
+    const k = d3.easeCubicInOut(Math.min(1, t / 900));
     projection.rotate([from[0] + dl * k, from[1] + (to[1] - from[1]) * k]);
-    draw();
+    dirty = true;
     if (t >= 900) flyTimer.stop();
   });
 }
 (function interactions() {
-  // Drag follows the finger 1:1, redraws once per frame, and coasts after release.
-  let last = null, lastT = 0, vx = 0, vy = 0, coasting = false;
+  let last = null, lastT = 0, vx = 0, vy = 0, coasting = false, pinch = 0;
   const MAX_ZOOM = 12, pts = new Map();
-  let zoomTarget = 1, pinch = 0;
   const clampZ = (z) => Math.max(1, Math.min(MAX_ZOOM, z));
   const applyZoom = () => { projection.scale((size / 2 - 14) * zoom); dirty = true; };
   const spread = () => { const [a, b] = [...pts.values()]; return Math.hypot(a[0] - b[0], a[1] - b[1]); };
@@ -480,7 +551,6 @@ function flyTo(lonlat) {
     coasting = !reduceMotion && Math.hypot(vx, vy) > 0.05;
   };
   canvas.addEventListener("pointerup", end); canvas.addEventListener("pointercancel", end);
-  // Zoom glides toward a target instead of jumping, and goes up to 12x.
   const zoomBy = (f) => { zoomTarget = clampZ(zoomTarget * f); if (reduceMotion) { zoom = zoomTarget; applyZoom(); } };
   $("zin").addEventListener("click", () => zoomBy(1.7));
   $("zout").addEventListener("click", () => zoomBy(1 / 1.7));
@@ -506,166 +576,342 @@ function flyTo(lonlat) {
   });
 })();
 
-/* ---------- Game logic ---------- */
+/* ---------- Geometry for solo play ---------- */
 const distance = (a, b) => d3.geoDistance(byKey.get(a).center, byKey.get(b).center) * 3958.8;
 function bearing(a, b) {
   const [l1, p1] = byKey.get(a).center.map((d) => d * Math.PI / 180), [l2, p2] = byKey.get(b).center.map((d) => d * Math.PI / 180);
   const y = Math.sin(l2 - l1) * Math.cos(p2), x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(l2 - l1);
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
-const isWon = () => !!state && state.guesses.includes(state.answer);
-const isDone = () => !!state && (isWon() || state.guesses.length >= MAX_GUESSES);
-const cluesShown = () => isDone() ? 6 : Math.min(6, state.guesses.length + 1);
 
+/* ---------- One model for the screen, whichever mode is running ---------- */
+const serverNow = () => Date.now() + (live ? live.skew : 0);
+function model() {
+  if (view === "play" && live && live.s) {
+    const s = live.s, r = s.result;
+    return { kind: "live", guesses: s.guesses, clues: s.clues || [], done: s.status === "done", won: !!r && r.winner === "me",
+      answer: r ? r.answer : null, fresh: live.fresh, started: !!s.starts && serverNow() >= s.starts };
+  }
+  if (view === "play" && solo) {
+    const d = CASES[solo.answer], won = solo.guesses.includes(solo.answer), done = won || solo.guesses.length >= MAX_GUESSES;
+    const shown = done ? 6 : Math.min(6, solo.guesses.length + 1);
+    return { kind: solo.mode, guesses: solo.guesses.map((k) => ({ key: k, d: distance(k, solo.answer), b: bearing(k, solo.answer), ok: k === solo.answer })),
+      clues: [POP[d[0]], d[1], d[2], d[3], d[4], "key:" + solo.answer].slice(0, shown), done, won, answer: done ? solo.answer : null, fresh: solo.fresh, started: true };
+  }
+  return { kind: "none", guesses: [], clues: [], done: false, won: false, answer: null, fresh: -1, started: false };
+}
+
+/* ---------- Solo modes ---------- */
 function dailyAnswer(day) {
   const cycle = Math.floor(day / answerPool.length), rnd = mulberry(7919 + cycle * 104729);
   const order = answerPool.slice();
   for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
   return order[((day % order.length) + order.length) % order.length];
 }
-function startDaily() {
-  const day = todayIndex(), saved = store.get("sd-daily");
-  state = { mode: "daily", day, answer: dailyAnswer(day), guesses: (saved && saved.day === day) ? saved.guesses.filter((k) => byKey.has(k)) : [], fresh: -1 };
-  afterStart();
-}
-function startPractice() {
-  let a; do { a = answerPool[Math.floor(Math.random() * answerPool.length)]; } while (state && a === state.answer);
-  state = { mode: "practice", day: 0, answer: a, guesses: [], fresh: -1 };
-  afterStart();
-}
-function afterStart() {
-  $("msg").textContent = ""; $("sharebox").hidden = true; $("guess").value = "";
-  if (isDone()) flyTo(byKey.get(state.answer).center);
-  render();
-}
-function submit(key) {
-  if (isDone()) return;
-  const cty = byKey.get(key);
-  if (state.guesses.includes(key)) { $("msg").textContent = cty.name + " is already on your list."; return; }
-  state.guesses.push(key);
-  $("msg").textContent = "";
-  $("guess").value = "";
-  pulseKey = null;
-  if (state.mode === "daily") store.set("sd-daily", { day: state.day, guesses: state.guesses });
-  if (isDone()) {
-    if (state.mode === "daily") recordResult(isWon());
-    state.fresh = -1;
-    toast(isWon() ? "Case closed" : "Out of guesses", isWon() ? "same" : "colder");
-    flyTo(byKey.get(state.answer).center);
+function startSolo(mode) {
+  live = null;
+  if (mode === "daily") {
+    const day = todayIndex(), saved = store.get("sd-daily");
+    solo = { mode, day, answer: dailyAnswer(day), guesses: (saved && saved.day === day) ? saved.guesses.filter((k) => byKey.has(k)) : [], fresh: -1 };
   } else {
-    state.fresh = state.guesses.length; // index of clue just unlocked
-    if (!reduceMotion) { pulseKey = key; pulseStart = performance.now(); }
-    const i = state.fresh, d = CASES[state.answer], clue = i === 0 ? POP[d[0]] : i < 4 ? d[i] : i === 4 ? d[4].split(" ").map((c) => SWATCH_NAME[c] || c).join(", ") : "see the case file";
-    const m = $("msg"); m.textContent = "";
-    const b = document.createElement("b"); b.textContent = CLUE_LABELS[i] + ": " + clue;
-    const dNow = distance(key, state.answer), prevKey = state.guesses[state.guesses.length - 2];
-    let word, cls;
-    if (prevKey) { const dPrev = distance(prevKey, state.answer); if (Math.abs(dNow - dPrev) < 25) { word = "About the same"; cls = "same"; } else if (dNow < dPrev) { word = "Warmer"; cls = "warmer"; } else { word = "Colder"; cls = "colder"; } }
-    else if (dNow < 1500) { word = "Hot start"; cls = "warmer"; } else if (dNow < 4000) { word = "Warm start"; cls = "same"; } else { word = "Cold start"; cls = "colder"; }
-    toast(word, cls);
-    m.append(word + ". " + cty.name + " is " + Math.round(distance(key, state.answer)).toLocaleString("en-US") + " mi off " + ARROWS[Math.round(bearing(key, state.answer) / 45) % 8] + "  New clue. ", b);
-    flyTo(cty.center);
+    let a; do { a = answerPool[Math.floor(Math.random() * answerPool.length)]; } while (solo && a === solo.answer);
+    solo = { mode, day: 0, answer: a, guesses: [], fresh: -1 };
   }
-  render();
+  enterPlay();
 }
+function enterPlay() {
+  view = "play"; pulseKey = null; spinning = false;
+  $("msg").textContent = ""; $("sharebox").hidden = true; $("guess").value = "";
+  render();
+  if (M.done && M.answer) flyTo(byKey.get(M.answer).center);
+}
+function goHome() {
+  if (lobby === "searching" && view === "home") { cancelSearch(); return; }
+  if (live && live.s && live.s.status === "active") { $("msg").textContent = "This match is still running. It ends when someone solves it or the clock hits zero."; return; }
+  view = "home"; lobby = "menu"; stopPolling(); live = null;
+  zoomTarget = 1; spinning = !reduceMotion;
+  render(); loadBoard();
+}
+function recordDaily(won) {
+  const s = store.get("sd-stats") || { streak: 0, best: 0, lastDay: null };
+  if (s.lastDay === solo.day) return;
+  s.streak = won ? ((s.lastDay === solo.day - 1 ? s.streak : 0) + 1) : 0;
+  s.best = Math.max(s.best, s.streak); s.lastDay = solo.day;
+  store.set("sd-stats", s);
+}
+
+/* ---------- Guess feedback shared by all modes ---------- */
 let toastTimer = null;
 function toast(text, cls) {
   const t = $("toast"); clearTimeout(toastTimer);
-  t.textContent = text; t.className = "toast show " + cls;
-  toastTimer = setTimeout(() => { t.className = "toast " + cls; }, 2400);
+  t.textContent = text; t.className = "toast show " + (cls || "");
+  toastTimer = setTimeout(() => { t.className = "toast " + (cls || ""); }, 2400);
 }
-function recordResult(won) {
-  const s = store.get("sd-stats") || { streak: 0, best: 0, lastDay: null };
-  if (s.lastDay === state.day) return;
-  s.streak = won ? ((s.lastDay === state.day - 1 ? s.streak : 0) + 1) : 0;
-  s.best = Math.max(s.best, s.streak); s.lastDay = state.day;
-  store.set("sd-stats", s);
+function clueText(i, v) { return i === 4 ? v.split(" ").map((c) => SWATCH_NAME[c] || c).join(", ") : i === 5 ? "see the case file" : v; }
+function feedback(before, after) {
+  // before/after are models; called after a wrong guess of mine
+  const g = after.guesses[after.guesses.length - 1], prev = after.guesses[after.guesses.length - 2], cty = byKey.get(g.key);
+  let word, cls;
+  if (prev) { if (Math.abs(g.d - prev.d) < 25) { word = "About the same"; cls = ""; } else if (g.d < prev.d) { word = "Warmer"; cls = "warmer"; } else { word = "Colder"; cls = "colder"; } }
+  else if (g.d < 1500) { word = "Hot start"; cls = "warmer"; } else if (g.d < 4000) { word = "Warm start"; cls = ""; } else { word = "Cold start"; cls = "colder"; }
+  toast(word, cls);
+  const m = $("msg"); m.textContent = "";
+  m.append(word + ". " + cty.name + " is " + miles(g.d) + " off " + arrow(g.b) + " ");
+  if (after.clues.length > before.clues.length) {
+    const i = after.clues.length - 1, b = document.createElement("b");
+    b.textContent = CLUE_LABELS[i] + ": " + clueText(i, after.clues[i]);
+    m.append(" New clue. ", b);
+  } else if (after.guesses.length >= MAX_GUESSES) m.append(" That was your last guess.");
+  if (!reduceMotion) { pulseKey = g.key; pulseStart = performance.now(); }
+  flyTo(cty.center);
 }
+
+let pending = false;
+async function submit(key) {
+  if (M.done || pending) return;
+  const cty = byKey.get(key);
+  if (M.guesses.some((x) => x.key === key)) { $("msg").textContent = cty.name + " is already on your list."; return; }
+  $("guess").value = "";
+  if (live) {
+    if (!M.started) { $("msg").textContent = "Wait for the countdown."; return; }
+    pending = true;
+    try { applyLive(await rpc("wh_guess", { p_token: token(), p_match: live.id, p_country: key }), true); }
+    catch (e) { $("msg").textContent = e.message; }
+    finally { pending = false; }
+    return;
+  }
+  const before = M;
+  solo.guesses.push(key);
+  if (solo.mode === "daily") store.set("sd-daily", { day: solo.day, guesses: solo.guesses });
+  solo.fresh = solo.guesses.length;
+  const after = model();
+  if (after.done) {
+    solo.fresh = -1; $("msg").textContent = "";
+    if (solo.mode === "daily") recordDaily(after.won);
+    toast(after.won ? "Case closed" : "Out of guesses", after.won ? "good" : "colder");
+    flyTo(byKey.get(solo.answer).center);
+  } else feedback(before, after);
+  render();
+}
+
+/* ---------- Online: identity, matchmaking, live match ---------- */
+const token = () => store.get("wh-token");
+function newToken() { const a = new Uint8Array(24); crypto.getRandomValues(a); return Array.from(a, (b) => b.toString(16).padStart(2, "0")).join(""); }
+async function loadProfile() {
+  if (!token()) return;
+  try { profile = await rpc("wh_profile", { p_token: token() }); }
+  catch (e) { if (e.network) online = false; else profile = null; }
+  render();
+}
+async function loadBoard() {
+  try {
+    const rows = await rpc("wh_leaderboard"), ol = $("board"); ol.textContent = "";
+    if (!rows.length) { const li = document.createElement("li"); li.className = "none"; li.textContent = "No ranked games yet. Be the first on the board."; ol.append(li); }
+    rows.forEach((r, i) => { const li = document.createElement("li"); const a = document.createElement("span"), b = document.createElement("span"), c = document.createElement("span"); a.textContent = i + 1; b.textContent = r.name; c.textContent = r.rating; li.append(a, b, c); ol.append(li); });
+  } catch (e) { if (e.network) { online = false; render(); } }
+}
+async function saveName(name) {
+  if (!token()) store.set("wh-token", newToken());
+  profile = await rpc("wh_register", { p_token: token(), p_name: name });
+}
+let pollTimer = null, clockTimer = null, searchStart = 0, busy = false;
+function stopPolling() { clearInterval(pollTimer); clearInterval(clockTimer); pollTimer = clockTimer = null; }
+async function startSearch() {
+  lobby = "searching"; searchStart = Date.now(); solo = null; render();
+  try {
+    const r = await rpc("wh_find_match", { p_token: token() });
+    live = { id: r.match, s: null, skew: 0, fresh: -1 };
+    stopPolling();
+    pollTimer = setInterval(poll, 1500); clockTimer = setInterval(tickClock, 250);
+    poll();
+  } catch (e) {
+    lobby = "menu"; if (e.network) online = false;
+    if (/Unknown player/.test(e.message)) { profile = null; lobby = "name"; nameThenPlay = true; }
+    render();
+  }
+}
+async function cancelSearch() {
+  stopPolling(); live = null; lobby = "menu"; render();
+  try { await rpc("wh_cancel", { p_token: token() }); } catch (e) { /* nothing waiting */ }
+}
+async function poll() {
+  if (!live || busy || pending) return;
+  busy = true;
+  try { const s = await rpc("wh_state", { p_token: token(), p_match: live.id }); if (live && s.id === live.id) applyLive(s, false); }
+  catch (e) { if (view === "play") $("msg").textContent = e.message; }
+  finally { busy = false; }
+}
+function applyLive(s, mine) {
+  const was = live.s, before = M;
+  live.s = s; live.skew = s.now - Date.now(); profile = s.me;
+  if (s.status === "waiting") { render(); return; }
+  if (view !== "play") { // opponent found
+    live.fresh = -1; enterPlay();
+    toast("Rival found: " + s.opp.name, "");
+  }
+  const after = model();
+  const grew = after.guesses.length > (was ? was.guesses.length : 0);
+  live.fresh = after.clues.length > (was && was.clues ? was.clues.length : 0) && grew ? after.clues.length - 1 : -1;
+  if (s.status === "done") {
+    if (!was || was.status !== "done") {
+      stopPolling(); live.fresh = -1;
+      const w = s.result.winner;
+      toast(w === "me" ? "Victory" : w === "opp" ? "Defeat" : "Draw", w === "me" ? "good" : w === "opp" ? "colder" : "");
+      $("msg").textContent = "";
+      const a = byKey.get(s.result.answer); if (a) flyTo(a.center);
+    }
+  } else if (mine && grew) {
+    feedback(before, after); lastFeedback = Date.now();
+  } else if (was && s.opp && was.opp && s.opp.guesses.length > was.opp.guesses.length && Date.now() - lastFeedback > 5000) {
+    const og = s.opp.guesses[s.opp.guesses.length - 1];
+    $("msg").textContent = s.opp.name + " guessed " + miles(og.d) + " from the answer.";
+  }
+  render();
+}
+let lastPhase = "", lastFeedback = 0;
+function tickClock() {
+  if (lobby === "searching" && view === "home") { const t = Math.floor((Date.now() - searchStart) / 1000); $("search-time").textContent = Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); }
+  if (!live || !live.s || live.s.status !== "active") return;
+  const now = serverNow(), s = live.s, c = $("clock");
+  let phase;
+  if (now < s.starts) { phase = "pre"; c.textContent = "Starts in " + Math.max(1, Math.ceil((s.starts - now) / 1000)); c.className = "clock pre"; }
+  else {
+    const left = Math.max(0, Math.ceil((s.ends - now) / 1000)); phase = left > 0 ? "run" : "over";
+    c.textContent = Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0"); c.className = "clock" + (left <= 15 ? " low" : "");
+  }
+  if (phase !== lastPhase) { lastPhase = phase; if (phase !== "pre") poll(); render(); }
+}
+
 function shareText() {
-  const won = isWon(), sq = state.guesses.map((k) => {
-    if (k === state.answer) return "🟩";
-    const d = distance(k, state.answer); return d < 4000 ? "🟥" : "🟦";
-  }).join("");
-  const title = state.mode === "daily" ? "Wherld #" + (state.day + 1) : "Wherld (practice)";
-  return title + "  " + (won ? state.guesses.length : "X") + "/" + MAX_GUESSES + "\n" + sq + "\nwherld.com";
+  if (M.kind === "live") {
+    const r = live.s.result, word = r.winner === "me" ? "won" : r.winner === "opp" ? "lost" : "drew";
+    const sq = M.guesses.map((g) => g.ok ? "🟩" : g.d < 4000 ? "🟥" : "🟦").join("");
+    return "Wherld 1v1: I " + word + " against " + live.s.opp.name + " (" + r.answerName + ")\n" + sq + "\nRating " + live.s.me.rating + " · wherld.com";
+  }
+  const sq = M.guesses.map((g) => g.ok ? "🟩" : g.d < 4000 ? "🟥" : "🟦").join("");
+  const title = M.kind === "daily" ? "Wherld #" + (solo.day + 1) : "Wherld (practice)";
+  return title + "  " + (M.won ? M.guesses.length : "X") + "/" + MAX_GUESSES + "\n" + sq + "\nwherld.com";
 }
 
 /* ---------- Rendering ---------- */
 function render() {
-  const data = CASES[state.answer], shown = cluesShown(), done = isDone(), won = isWon();
-  $("mode-daily").setAttribute("aria-pressed", state.mode === "daily");
-  $("mode-practice").setAttribute("aria-pressed", state.mode === "practice");
-  $("caseno").textContent = state.mode === "daily" ? "Daily No. " + (state.day + 1) : "Practice round";
-  const s = store.get("sd-stats");
-  $("streak").innerHTML = s ? "Streak <b>" + (s.lastDay >= todayIndex() - 1 ? s.streak : 0) + "</b> · Best <b>" + s.best + "</b>" : "Streak <b>0</b>";
+  M = model();
+  document.body.dataset.view = view;
+  document.body.dataset.live = M.kind === "live" ? "1" : "0";
 
+  // header chips
+  $("chips").hidden = !profile;
+  if (profile) { $("chip-rating").textContent = profile.rating; $("chip-coins").textContent = profile.coins; }
+
+  // lobby
+  $("lb-menu").hidden = lobby !== "menu"; $("lb-name").hidden = lobby !== "name"; $("lb-search").hidden = lobby !== "searching";
+  $("who").hidden = !profile;
+  if (profile) { $("who-name").textContent = profile.name; $("who-stats").textContent = profile.wins + " W · " + profile.losses + " L · " + profile.draws + " D"; }
+  $("play-online").disabled = !online; $("offline").hidden = online;
+  const st = store.get("sd-stats");
+  $("daily-sub").textContent = st && st.lastDay >= todayIndex() - 1 && st.streak ? "Streak " + st.streak : "One a day";
+
+  if (view !== "play") { dirty = true; return; }
+
+  // versus bar
+  const isLive = M.kind === "live";
+  $("versus").hidden = !isLive;
+  if (isLive) {
+    const s = live.s;
+    $("vs-me").textContent = s.me.name; $("vs-me-rt").textContent = "You · " + s.me.rating;
+    $("vs-opp").textContent = s.opp.name; $("vs-bot").hidden = !s.opp.bot; $("vs-opp-rt").textContent = "Rival · " + s.opp.rating;
+    const pips = $("pips"); pips.textContent = "";
+    for (let i = 0; i < MAX_GUESSES; i++) { const p = document.createElement("i"), og = s.opp.guesses[i]; if (og) { p.style.background = og.ok ? "#3fae6b" : heatFor(og.d); p.style.borderColor = "transparent"; p.title = og.ok ? "Solved" : miles(og.d) + " off"; } pips.append(p); }
+    if (s.status === "done") { $("clock").textContent = "Final"; $("clock").className = "clock pre"; }
+  }
+
+  // case file
+  $("caseno").textContent = isLive ? "Ranked 1 v 1" : M.kind === "daily" ? "Daily No. " + (solo.day + 1) : "Practice round";
   const ol = $("clues"); ol.textContent = "";
   CLUE_LABELS.forEach((label, i) => {
     const li = document.createElement("li");
     const n = document.createElement("span"); n.className = "n"; n.textContent = i + 1;
     const k = document.createElement("span"); k.className = "k"; k.textContent = label;
     li.append(n, k);
-    if (i < shown) {
+    if (i < M.clues.length) {
       const v = document.createElement("div"); v.className = "v";
-      if (i === 0) v.textContent = POP[data[0]];
-      else if (i < 4) v.textContent = data[i];
+      if (i < 4) v.textContent = M.clues[i];
       else if (i === 4) {
         v.className = "v swatches";
-        data[4].split(" ").forEach((c) => { const sp = document.createElement("span"), dot = document.createElement("i"); dot.style.background = SWATCH[c]; sp.append(dot, SWATCH_NAME[c] || c); v.append(sp); });
-      } else {
-        const cv = document.createElement("canvas"); cv.id = "shape"; cv.setAttribute("role", "img"); cv.setAttribute("aria-label", "Outline of the mystery country"); v.append(cv);
-      }
-      if (i === state.fresh) li.classList.add("fresh");
+        M.clues[4].split(" ").forEach((c) => { const sp = document.createElement("span"), dot = document.createElement("i"); dot.style.background = SWATCH[c] || "#888"; sp.append(dot, SWATCH_NAME[c] || c); v.append(sp); });
+      } else { const cv = document.createElement("canvas"); cv.id = "shape"; cv.setAttribute("role", "img"); cv.setAttribute("aria-label", "Outline of the mystery country"); v.append(cv); }
+      if (i === M.fresh) li.classList.add("fresh");
       li.append(v);
     } else {
       li.classList.add("locked");
       const r = document.createElement("div"); r.className = "redact";
-      const bar = document.createElement("i"); bar.style.width = (70 + (i * 37) % 60) + "px";
-      const sm = document.createElement("small"); sm.textContent = "unlocks after miss " + i;
-      r.append(bar, sm); li.append(r);
+      const bar = document.createElement("i"); bar.style.width = (60 + (i * 37) % 50) + "px";
+      r.append(bar); li.append(r);
     }
     ol.append(li);
   });
-  if (shown === 6) drawShape();
-  $("locknote").hidden = shown >= 6;
-  $("locknote").textContent = (6 - shown) + (6 - shown === 1 ? " more clue" : " more clues") + " locked. Each miss opens one.";
+  if (M.clues.length === 6) drawShape(M.clues[5]);
+  const locked = 6 - M.clues.length;
+  $("locknote").hidden = locked === 0;
+  $("locknote").textContent = isLive && !M.started ? "Clues open when the clock starts." : locked + (locked === 1 ? " more clue" : " more clues") + " locked. Each miss opens one.";
 
+  // guesses
   const gl = $("glist"); gl.textContent = "";
-  if (!state.guesses.length) {
-    const li = document.createElement("li"); li.className = "empty"; li.textContent = "None yet. Each guess shows up here and on the globe."; gl.append(li);
-  }
-  state.guesses.forEach((key) => {
-    const cty = byKey.get(key), hit = key === state.answer, d = distance(key, state.answer);
+  if (!M.guesses.length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = "None yet. Each guess shows up here and on the globe."; gl.append(li); }
+  M.guesses.forEach((x) => {
+    const cty = byKey.get(x.key); if (!cty) return;
     const li = document.createElement("li"), b = document.createElement("button"); b.type = "button";
-    b.setAttribute("aria-label", cty.name + (hit ? ", correct" : ", " + Math.round(d) + " miles away") + ". Show on globe.");
-    const dot = document.createElement("span"); dot.className = "dot"; dot.style.background = hit ? "#3fae6b" : heatFor(d);
+    b.setAttribute("aria-label", cty.name + (x.ok ? ", correct" : ", " + Math.round(x.d) + " miles away") + ". Show on globe.");
+    const dot = document.createElement("span"); dot.className = "dot"; dot.style.background = x.ok ? "#3fae6b" : heatFor(x.d);
     const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = cty.name;
-    const ds = document.createElement("span"); ds.className = "ds"; ds.textContent = hit ? "solved" : Math.round(d).toLocaleString("en-US") + " mi";
-    const ar = document.createElement("span"); ar.className = "ar"; ar.textContent = hit ? "✓" : ARROWS[Math.round(bearing(key, state.answer) / 45) % 8];
+    const ds = document.createElement("span"); ds.className = "ds"; ds.textContent = x.ok ? "solved" : miles(x.d);
+    const ar = document.createElement("span"); ar.className = "ar"; ar.textContent = x.ok ? "✓" : arrow(x.b);
     b.append(dot, nm, ds, ar); b.addEventListener("click", () => flyTo(cty.center));
     li.append(b); gl.append(li);
   });
-  $("left").textContent = done ? "" : (MAX_GUESSES - state.guesses.length) + " left";
+  const out = M.guesses.length >= MAX_GUESSES;
+  $("left").textContent = M.done ? "" : (MAX_GUESSES - M.guesses.length) + " left";
 
-  $("guess").disabled = done; $("go").disabled = done;
-  $("guess").placeholder = done ? "Case closed" : "Type a country";
-  const v = $("verdict"); v.hidden = !done;
-  if (done) {
-    $("stamp").textContent = won ? "Case closed" : "Cold case"; $("stamp").className = "stamp " + (won ? "win" : "loss");
-    $("ans").textContent = byKey.get(state.answer).name;
-    const pts = MAX_GUESSES + 1 - state.guesses.length;
-    $("scoreline").textContent = won ? "Solved on guess " + state.guesses.length + " of " + MAX_GUESSES + " for " + pts + (pts === 1 ? " point." : " points.") + (state.mode === "daily" ? " A new case opens at midnight." : "") : "Out of guesses. " + (state.mode === "daily" ? "A new case opens at midnight." : "Try another one.");
+  // input
+  const blocked = M.done || out || (isLive && !M.started);
+  $("guess").disabled = blocked; $("go").disabled = blocked;
+  $("guess").placeholder = M.done ? "Case closed" : out ? "Out of guesses. Waiting on the clock." : isLive && !M.started ? "Get ready" : "Type a country";
+
+  // verdict
+  $("verdict").hidden = !M.done;
+  if (M.done) {
+    const stamp = $("stamp"), gains = $("gains");
+    $("ans").textContent = byKey.get(M.answer) ? byKey.get(M.answer).name : (isLive ? live.s.result.answerName : "");
+    if (isLive) {
+      const r = live.s.result, opp = live.s.opp.name;
+      stamp.textContent = r.winner === "me" ? "Victory" : r.winner === "opp" ? "Defeat" : "Draw";
+      stamp.className = "stamp " + (r.winner === "me" ? "win" : r.winner === "opp" ? "loss" : "draw");
+      const lead = r.outcome === "solved" ? "" : r.outcome === "time" ? "Time ran out. " : "Both of you ran out of guesses. ";
+      $("scoreline").textContent = r.outcome === "solved" ? (r.winner === "me" ? "You solved it first." : opp + " solved it first.")
+        : lead + (r.winner === "me" ? "Your closest guess was nearer." : r.winner === "opp" ? opp + "'s closest guess was nearer." : "Nobody was closer.");
+      gains.hidden = false;
+      gains.textContent = "Rating " + (r.delta >= 0 ? "+" : "") + r.delta + " (" + live.s.me.rating + ") · Coins +" + r.coins;
+      $("again").hidden = false; $("again").textContent = "Play again";
+    } else {
+      stamp.textContent = M.won ? "Case closed" : "Cold case"; stamp.className = "stamp " + (M.won ? "win" : "loss");
+      const pts = MAX_GUESSES + 1 - M.guesses.length;
+      $("scoreline").textContent = M.won ? "Solved on guess " + M.guesses.length + " of " + MAX_GUESSES + " for " + pts + (pts === 1 ? " point." : " points.") + (M.kind === "daily" ? " A new case opens at midnight." : "") : "Out of guesses. " + (M.kind === "daily" ? "A new case opens at midnight." : "Try another one.");
+      gains.hidden = true;
+      $("again").hidden = M.kind === "daily"; $("again").textContent = "New round";
+    }
   }
-  draw();
+  dirty = true;
 }
-function drawShape() {
+function drawShape(v) {
   const cv = $("shape"); if (!cv) return;
-  const w = 92, h = 62, dpr = Math.min(window.devicePixelRatio || 1, 2), f = byKey.get(state.answer).feature, c = d3.geoCentroid(f);
+  const w = 92, h = 62, dpr = Math.min(window.devicePixelRatio || 1, 2);
   cv.width = w * dpr; cv.height = h * dpr;
-  const x = cv.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const pr = d3.geoAzimuthalEqualArea().rotate([-c[0], -c[1]]).fitExtent([[6, 6], [w - 6, h - 6]], f);
-  x.beginPath(); d3.geoPath(pr, x)(f);
-  x.fillStyle = "#1c2733"; x.fill();
+  const x = cv.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.fillStyle = "#1c2733";
+  if (v.startsWith("key:")) {
+    const f = byKey.get(v.slice(4)).feature, c = d3.geoCentroid(f);
+    const pr = d3.geoAzimuthalEqualArea().rotate([-c[0], -c[1]]).fitExtent([[6, 6], [w - 6, h - 6]], f);
+    x.beginPath(); d3.geoPath(pr, x)(f); x.fill();
+  } else if (SHAPES[v]) x.fill(new Path2D(SHAPES[v]));
 }
 
 /* ---------- Autocomplete ---------- */
@@ -682,7 +928,7 @@ function drawShape() {
     items.forEach((c, i) => {
       const li = document.createElement("li"); li.setAttribute("role", "option"); li.id = "opt-" + i; li.textContent = c.name;
       li.setAttribute("aria-selected", i === 0);
-      if (state.guesses.includes(c.key)) li.classList.add("used");
+      if (M.guesses.some((x) => x.key === c.key)) li.classList.add("used");
       li.addEventListener("pointerdown", (e) => { e.preventDefault(); pick(c); });
       list.append(li);
     });
@@ -701,7 +947,7 @@ function drawShape() {
   });
   $("form").addEventListener("submit", (e) => {
     e.preventDefault();
-    if (isDone()) return;
+    if (M.done) return;
     const m = list.hidden ? matches(input.value) : items;
     const exact = countries.find((c) => c.search.includes(norm(input.value)));
     const choice = (!list.hidden && m[active]) || exact || m[0];
@@ -711,9 +957,30 @@ function drawShape() {
 })();
 
 /* ---------- Buttons ---------- */
-$("mode-daily").addEventListener("click", () => { if (state.mode !== "daily") startDaily(); });
-$("mode-practice").addEventListener("click", () => { if (state.mode !== "practice") startPractice(); });
-$("again").addEventListener("click", startPractice);
+$("home").addEventListener("click", goHome);
+$("to-home").addEventListener("click", goHome);
+$("play-daily").addEventListener("click", () => startSolo("daily"));
+$("play-practice").addEventListener("click", () => startSolo("practice"));
+$("play-online").addEventListener("click", () => {
+  if (!profile) { nameThenPlay = true; lobby = "name"; render(); $("nick").value = "Explorer" + (1000 + Math.floor(Math.random() * 9000)); $("nick").focus(); $("nick").select(); return; }
+  startSearch();
+});
+$("rename").addEventListener("click", () => { nameThenPlay = false; lobby = "name"; render(); $("nick").value = profile.name; $("nick-save").textContent = "Save"; $("nick").focus(); });
+$("nick-cancel").addEventListener("click", () => { lobby = "menu"; $("nick-save").textContent = "Save and play"; render(); });
+$("lb-name").addEventListener("submit", async (e) => {
+  e.preventDefault(); const err = $("nick-err"); err.hidden = true;
+  const name = $("nick").value.trim();
+  if (name.replace(/[^A-Za-z0-9 _-]/g, "").length < 3) { err.textContent = "Use at least 3 letters or numbers."; err.hidden = false; return; }
+  $("nick-save").disabled = true;
+  try { await saveName(name); $("nick-save").textContent = "Save and play"; if (nameThenPlay) startSearch(); else { lobby = "menu"; render(); } }
+  catch (ex) { err.textContent = ex.message; err.hidden = false; if (ex.network) online = false; }
+  finally { $("nick-save").disabled = false; }
+});
+$("search-cancel").addEventListener("click", cancelSearch);
+$("again").addEventListener("click", () => {
+  if (M.kind === "live") { view = "home"; live = null; zoomTarget = 1; spinning = !reduceMotion; startSearch(); }
+  else startSolo("practice");
+});
 $("copy").addEventListener("click", async () => {
   const text = shareText(), box = $("sharebox");
   try { await navigator.clipboard.writeText(text); $("copy").textContent = "Copied"; setTimeout(() => { $("copy").textContent = "Copy result"; }, 1600); }
@@ -721,7 +988,14 @@ $("copy").addEventListener("click", async () => {
 });
 
 /* ---------- Boot ---------- */
+function splitAliases(s) {
+  const phrases = ["great britain", "democratic republic of the congo", "congo kinshasa", "congo brazzaville", "ivory coast", "czech republic", "korea republic", "east timor"];
+  const out = []; let rest = s;
+  for (const p of phrases) if (rest.includes(p)) { out.push(p); rest = rest.replace(p, " "); }
+  return out.concat(rest.split(" ").filter(Boolean));
+}
 function start(snap) {
+  fetch("shapes.json").then((r) => r.json()).then((j) => { SHAPES = j; if (M.clues.length === 6) drawShape(M.clues[5]); }).catch(() => {});
   fetch("world.json").then((r) => r.json()).then((world) => {
     const geoms = world.objects.countries.geometries.filter((g) => !SKIP.has(g.id));
     landGeo = topojson.merge(world, geoms);
@@ -734,25 +1008,18 @@ function start(snap) {
         let best = -1;
         for (const coords of f.geometry.coordinates) { const p = { type: "Polygon", coordinates: coords }, a = d3.geoArea(p); if (a > best) { best = a; main = p; } }
       }
-      const search = [norm(name)].concat(ALIAS[key] ? ALIAS[key].split(" ").length > 3 ? splitAliases(ALIAS[key]) : ALIAS[key].split(" ") : []);
-      if (ALIAS[key]) search.push(norm(ALIAS[key]));
+      const search = [norm(name)].concat(ALIAS[key] ? splitAliases(ALIAS[key]) : []);
       return { key, name, feature: f, center: d3.geoCentroid(main), search };
     }).sort((a, b) => a.name.localeCompare(b.name));
     byKey = new Map(countries.map((c) => [c.key, c]));
     answerPool = Object.keys(CASES).filter((k) => byKey.has(k)).sort();
-    if (snap && snap.answer && byKey.has(snap.answer) && CASES[snap.answer]) { state = { mode: snap.mode, day: snap.day, answer: snap.answer, guesses: (snap.guesses || []).filter((k) => byKey.has(k)), fresh: -1 }; afterStart(); }
-    else startDaily();
+    if (snap && snap.solo && byKey.has(snap.solo.answer) && CASES[snap.solo.answer]) { solo = { mode: snap.solo.mode, day: snap.solo.day, answer: snap.solo.answer, guesses: (snap.solo.guesses || []).filter((k) => byKey.has(k)), fresh: -1 }; enterPlay(); }
+    else render();
     resize();
-  }).catch(() => { $("msg").textContent = "The map could not load. Reload the page to try again."; });
+    loadProfile(); loadBoard();
+  }).catch(() => { $("offline").hidden = false; $("offline").textContent = "The map could not load. Reload the page to try again."; });
 }
-function splitAliases(s) {
-  // multi-word aliases: keep known phrases together, plus single words
-  const phrases = ["great britain", "democratic republic of the congo", "congo kinshasa", "congo brazzaville", "ivory coast", "czech republic", "korea republic", "east timor"];
-  const out = []; let rest = s;
-  for (const p of phrases) if (rest.includes(p)) { out.push(p); rest = rest.replace(p, " "); }
-  return out.concat(rest.split(" ").filter(Boolean));
-}
-window.claude?.hot?.snapshot?.(() => state ? { mode: state.mode, day: state.day, answer: state.answer, guesses: state.guesses } : {});
+window.claude?.hot?.snapshot?.(() => (view === "play" && solo) ? { solo: { mode: solo.mode, day: solo.day, answer: solo.answer, guesses: solo.guesses } } : {});
 if (window.claude?.hot?.ready) window.claude.hot.ready(start); else start(window.claude?.hot?.data ?? {});
 </script>
 </body>

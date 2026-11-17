@@ -598,6 +598,7 @@ const EPOCH = new Date(2026, 10, 16); // daily case #1
 const SB_URL = "https://wyvstvxrjdcmvmmdvunp.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dnN0dnhyamRjbXZtbWR2dW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4ODEyMjEsImV4cCI6MjExMDQ1NzIyMX0.fIVQecib_eAua7j3bVBY5SNoBUkyuGhCyuyy0Y4YNRs";
 let recovering = /type=recovery/.test(location.hash + location.search);
+const justConfirmed = /type=signup/.test(location.hash + location.search);
 const authReturnError = (/error_description=([^&]+)/.exec(location.hash + location.search) || [])[1];
 // Accounts: Supabase Auth keeps the session in this browser and refreshes it, so people stay signed in until they sign out.
 const sb = window.supabase && window.supabase.createClient ? window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }) : null;
@@ -1112,9 +1113,16 @@ async function signInEmail(create) {
   if (password.length < 8) return authError("au-err", "Use a password with at least 8 characters.");
   authError("au-err", ""); $("au-signin").disabled = $("au-create").disabled = true;
   try {
-    const { data, error } = create ? await sb.auth.signUp({ email, password }) : await sb.auth.signInWithPassword({ email, password });
-    if (error) return authError("au-err", error.message);
-    if (!data.session) return authError("au-err", "Check your email to confirm your account, then sign in.");
+    const back = location.origin + location.pathname;
+    const { data, error } = create ? await sb.auth.signUp({ email, password, options: { emailRedirectTo: back } }) : await sb.auth.signInWithPassword({ email, password });
+    if (error) {
+      if (/not confirmed/i.test(error.message)) {
+        await sb.auth.resend({ type: "signup", email, options: { emailRedirectTo: back } }).catch(() => {});
+        return authError("au-err", "Confirm your email first. We just sent the link again; check your inbox and spam folder.");
+      }
+      return authError("au-err", /already registered/i.test(error.message) ? "That email already has an account. Sign in, or tap Forgot password." : error.message);
+    }
+    if (!data.session) return authError("au-err", "Almost there! We sent a confirmation link to " + email + ". Tap it, and you'll come back here signed in.");
     $("au-pass").value = "";
     await syncAccount();
   } catch (e) { authError("au-err", "Can't reach the sign-in service. Check your connection."); }
@@ -1684,6 +1692,7 @@ function start(snap) {
     if (authReturnError) lobbyNote = "Sign-in didn't finish: " + decodeURIComponent(authReturnError.replace(/\+/g, " "));
     await syncAccount(); loadBoard();
     if (recovering && session && lobby !== "mfa") { view = "home"; lobby = "newpass"; render(); }
+    else if (justConfirmed && session && lobby === "menu") { lobbyNote = "Email confirmed. Welcome to Where's Pi!"; render(); }
     if (invite && lobby !== "mfa") needProfile(() => joinChallenge(invite[1]));
   }).catch(() => { $("offline").hidden = false; $("offline").textContent = "The map could not load. Reload the page to try again."; });
 }

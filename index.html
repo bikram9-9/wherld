@@ -146,6 +146,7 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 .link.center { align-self: center; font-size: 14px; font-weight: 500; margin-top: -4px; }
 .link:disabled { opacity: 0.5; cursor: not-allowed; }
 .group-label { margin: 2px 0 -6px !important; padding-top: 12px; border-top: 1.5px dashed var(--paper-ink); text-align: center; font-family: var(--font-mono); font-size: 11px !important; letter-spacing: 0.14em; text-transform: uppercase; color: #6b6452 !important; }
+.record a { color: var(--doodle-deep); }
 .record { text-align: center; font-family: var(--font-mono); font-size: 12px !important; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -371,6 +372,7 @@ body[data-live="1"] { --chrome: 268px; }
           <button type="button" class="btn" id="au-signout">Sign out</button>
         </div>
         <p class="note" id="au-err" hidden></p>
+        <p class="record"><a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a> · support@wherespi.com</p>
         <button type="button" class="btn" data-back>Back</button>
       </div>
       <form id="lb-mfa" hidden style="display:contents">

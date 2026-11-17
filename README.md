@@ -1,3 +1,3 @@
-# Wherld
+# Where's Pi
 
-Where in the world? A daily country guessing game. Play at https://wherld.com
+Pi the goldendoodle is hiding in a mystery country. Find him on the globe before your rival does.

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wherld</title>
-<meta name="description" content="Wherld: race a rival to name the mystery country. Live 1 v 1 matches, ratings and coins.">
+<title>Where's Pi</title>
+<meta name="description" content="Where's Pi: a goldendoodle is hiding in a mystery country. Race a rival to find him on the globe. Live 1 v 1 matches, ratings and coins.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Pacifico&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -27,6 +27,8 @@
   --solved: #3fae6b;
   --airmail-red: #c20d1a;
   --airmail-blue: #0a2a8f;
+  --doodle: #e3ad55;       /* Pi's coat */
+  --doodle-deep: #a86a12;
   --font-brand: "Pacifico", "Brush Script MT", "Segoe Script", cursive;
   --font-display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
   --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -41,8 +43,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 .wrap { max-width: 1280px; margin: 0 auto; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
 header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; }
-.brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-.brand button { border: 0; background: none; padding: 0 4px 2px 0; font-family: var(--font-brand); font-weight: 400; font-size: clamp(28px, 4vw, 38px); line-height: 1.25; color: var(--paper); text-transform: lowercase; }
+.brand { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.brand button { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; padding: 0 4px 2px 0; font-family: var(--font-brand); font-weight: 400; font-size: clamp(26px, 3.8vw, 36px); line-height: 1.25; color: var(--doodle); white-space: nowrap; }
+.pi-logo { width: 1.35em; height: 1.35em; flex: none; display: block; }
+.pi-logo svg, .pi-photo svg, .peek svg { display: block; width: 100%; height: 100%; overflow: visible; }
+/* Pi's tiny life signs: a blink and an ear flop */
+.pi-eyes { transform-origin: 60px 60px; animation: pi-blink 5.5s infinite; }
+.pi-ear-l { transform-origin: 32px 42px; animation: pi-flop 4.2s ease-in-out infinite; }
+.pi-ear-r { transform-origin: 88px 42px; animation: pi-flop 4.2s ease-in-out infinite reverse; }
+.brand button:hover .pi-logo { animation: pi-tilt 0.6s ease-in-out; }
+@keyframes pi-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+@keyframes pi-flop { 0%, 70%, 100% { transform: rotate(0deg); } 78% { transform: rotate(9deg); } 86% { transform: rotate(-5deg); } }
+@keyframes pi-tilt { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-14deg); } }
+@keyframes pi-peek { 0%, 50% { transform: translateY(50px); } 60%, 90% { transform: translateY(3px); } 100% { transform: translateY(50px); } }
+@media (prefers-reduced-motion: reduce) { .pi-eyes, .pi-ear-l, .pi-ear-r, .brand button:hover .pi-logo { animation: none; } }
 .brand p { margin: 0; color: var(--muted); font-size: 13px; }
 .chips { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 13px; }
 .chips span { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 12px; color: var(--muted); white-space: nowrap; }
@@ -95,42 +109,49 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 .toast.good { background: var(--solved); border-color: #b9f0cf; color: #06200f; }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 
-/* Lobby (home): an airmail letter on the desk. Striped edge, paper inside, ink and airmail red. */
-.lobby { position: absolute; top: 8px; right: 0; z-index: 4; width: 350px; padding: 9px; border-radius: 4px; transform: rotate(-1.2deg);
-  background: repeating-linear-gradient(135deg, var(--airmail-red) 0 16px, var(--paper) 16px 26px, var(--airmail-blue) 26px 42px, var(--paper) 42px 52px);
-  box-shadow: 0 22px 44px rgba(0,0,0,0.55); }
-.lobby-in { position: relative; background: var(--paper); color: var(--paper-ink); padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 13px; }
-.lobby .lb-brand { font-family: var(--font-brand); font-size: 42px; line-height: 1.2; color: var(--airmail-blue); margin: -8px 0 -6px; }
-.postmark { position: absolute; top: 12px; right: 14px; width: 74px; height: 74px; border-radius: 50%; border: 2px solid var(--airmail-red); outline: 1px solid var(--airmail-red); outline-offset: -6px; color: var(--airmail-red); display: grid; place-content: center; text-align: center; font-family: var(--font-mono); font-weight: 600; font-size: 9px; line-height: 1.25; letter-spacing: 0.08em; text-transform: uppercase; transform: rotate(11deg); opacity: 0.85; }
-.postmark b { display: block; font-size: 15px; letter-spacing: 0.02em; }
-.lobby h2 { font-family: var(--font-display); font-weight: 800; font-size: 23px; line-height: 1.08; margin: 0; letter-spacing: -0.01em; text-wrap: balance; max-width: 15ch; }
+/* Lobby (home): a "have you seen this dog?" flyer taped to the desk, with Pi peeking over the top. */
+.lobby { position: absolute; top: 30px; right: 4px; z-index: 4; width: 344px; transform: rotate(-1.4deg); }
+.peek { position: absolute; right: 104px; top: -50px; width: 80px; height: 50px; overflow: hidden; pointer-events: none; }
+.peek span { display: block; width: 80px; height: 80px; animation: pi-peek 7s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .peek span { animation: none; transform: translateY(3px); } }
+.lobby-in { position: relative; background: var(--paper); color: var(--paper-ink); padding: 16px 18px 16px; display: flex; flex-direction: column; gap: 12px; border-radius: 2px; box-shadow: 0 22px 44px rgba(0,0,0,0.55); }
+.lobby-in::before, .lobby-in::after { content: ""; position: absolute; top: -10px; width: 74px; height: 22px; background: rgba(240, 214, 140, 0.72); box-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+.lobby-in::before { left: -16px; transform: rotate(-32deg); }
+.lobby-in::after { right: -16px; transform: rotate(30deg); }
+.flyer-kicker { margin: 0; text-align: center; font-family: var(--font-mono); font-weight: 600; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--paper-ink); border-top: 2px solid var(--paper-ink); border-bottom: 2px solid var(--paper-ink); padding: 4px 0; }
+.lobby h2 { font-family: var(--font-brand); font-weight: 400; font-size: 44px; line-height: 1.15; margin: -6px 0 -8px; text-align: center; color: var(--doodle-deep); }
+.flyer-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 14px; align-items: center; }
+.pi-photo { width: 96px; height: 96px; padding: 6px; background: #cfe3ee; border: 2px solid var(--paper-ink); transform: rotate(-3deg); box-shadow: 2px 3px 0 rgba(28,39,51,0.25); }
+.facts { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 13.5px; }
+.facts dt { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6452; padding-top: 3px; }
+.facts dd { margin: 0; font-weight: 600; }
 .lobby p { margin: 0; font-size: 14px; color: #47525e; }
-.who { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; border-top: 1.5px solid var(--paper-ink); border-bottom: 1.5px solid var(--paper-ink); padding: 8px 0; }
+.who { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; border-top: 1.5px dashed var(--paper-ink); padding-top: 8px; }
 .who i { display: block; font-style: normal; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6452; }
 .who b { font-size: 17px; }
 .who small { display: block; font-family: var(--font-mono); font-size: 12px; color: #47525e; }
-.link { border: 0; background: none; padding: 0; color: var(--airmail-blue); font-size: 13px; text-decoration: underline; }
-.btn { border: 1.5px solid var(--paper-ink); background: transparent; color: var(--paper-ink); border-radius: 4px; padding: 9px 12px; font-weight: 600; text-align: center; }
+.link { border: 0; background: none; padding: 0; color: var(--doodle-deep); font-size: 13px; text-decoration: underline; }
+.btn { border: 1.5px solid var(--paper-ink); background: transparent; color: var(--paper-ink); border-radius: 6px; padding: 9px 12px; font-weight: 600; text-align: center; }
 .btn:hover { background: #f6f0e0; }
 .btn small { display: block; font-family: var(--font-mono); font-weight: 400; font-size: 11px; color: #6b6452; }
-.btn.primary { border: 0; background: var(--airmail-red); color: #fff6e6; padding: 13px; font-family: var(--font-display); font-weight: 800; font-size: 22px; letter-spacing: 0.01em; box-shadow: 0 4px 0 #7d0a12; }
-.btn.primary:hover { background: #d3131f; }
-.btn.primary:active { transform: translateY(3px); box-shadow: 0 1px 0 #7d0a12; }
-.btn.primary small { font-weight: 500; font-size: 11px; margin-top: 2px; color: #ffd9cf; }
+.btn.primary { border: 2px solid var(--paper-ink); background: var(--doodle); color: var(--paper-ink); padding: 12px; font-family: var(--font-display); font-weight: 800; font-size: 22px; box-shadow: 0 4px 0 var(--paper-ink); }
+.btn.primary:hover { background: #efbd6a; }
+.btn.primary:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--paper-ink); }
+.btn.primary small { font-weight: 500; font-size: 11px; margin-top: 2px; color: #4a3406; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .lobby label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #6b6452; display: flex; flex-direction: column; gap: 6px; }
-.lobby input { font: 500 17px var(--font-body); letter-spacing: 0; text-transform: none; color: var(--paper-ink); background: #f6f0e0; border: 1.5px solid var(--paper-ink); border-radius: 4px; padding: 9px 12px; }
-.lobby input:focus { outline: 2px solid var(--airmail-blue); outline-offset: 1px; }
+.lobby input { font: 500 17px var(--font-body); letter-spacing: 0; text-transform: none; color: var(--paper-ink); background: #f6f0e0; border: 1.5px solid var(--paper-ink); border-radius: 6px; padding: 9px 12px; }
+.lobby input:focus { outline: 2px solid var(--doodle-deep); outline-offset: 1px; }
 .board h3 { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #6b6452; margin: 0 0 4px; }
-.board ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 168px; overflow-y: auto; }
+.board ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 120px; overflow-y: auto; }
 .board li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; font-size: 14px; padding: 4px 0; border-bottom: 1px dashed var(--paper-line); }
 .board li:last-child { border-bottom: 0; }
 .board li span:first-child { font-family: var(--font-mono); font-size: 12px; color: #6b6452; }
 .board li span:nth-child(2) { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .board li span:last-child { font-family: var(--font-mono); font-weight: 600; font-variant-numeric: tabular-nums; }
 .board li.none { display: block; color: #6b6452; font-size: 13px; }
-.pulse { width: 54px; height: 54px; border-radius: 50%; border: 3px solid var(--paper-line); border-top-color: var(--airmail-red); animation: spin 0.9s linear infinite; }
+.pulse { width: 54px; height: 54px; border-radius: 50%; border: 3px solid var(--paper-line); border-top-color: var(--doodle-deep); animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
 .note { font-size: 13px; color: var(--airmail-red) !important; font-weight: 500; }
@@ -162,7 +183,7 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 .verdict #scoreline, .verdict .row, .verdict #sharebox, .verdict #gains { flex-basis: 100%; }
 .stamp { font-family: var(--font-display); font-weight: 800; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 12px; border: 3px solid currentColor; border-radius: 6px; transform: rotate(-3deg); }
 .stamp.win { color: #1f7a45; } .stamp.loss { color: #b23a20; } .stamp.draw { color: #4b5563; }
-.verdict .ans { font-family: var(--font-display); font-weight: 800; font-size: 20px; line-height: 1.1; }
+.verdict .ans { font-family: var(--font-display); font-weight: 800; font-size: 18px; line-height: 1.15; flex-basis: 100%; }
 .verdict #scoreline { font-size: 13px; }
 #gains { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
 .verdict .row { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -194,7 +215,7 @@ body[data-live="1"] { --chrome: 268px; }
   .guessbar { position: sticky; top: 0; z-index: 6; max-width: none; background: var(--ink); padding: 8px 0 4px; box-shadow: 0 12px 16px -8px var(--ink); }
   .globe-box { height: min(calc(100vw - 32px), 62dvh); }
   body[data-view="home"] .globe-box { height: min(calc(100vw - 32px), 44dvh); }
-  .lobby { position: static; width: 100%; max-width: 440px; transform: none; }
+  .lobby { position: relative; top: 0; right: 0; width: 100%; max-width: 440px; transform: none; margin-top: 50px; }
   .guesses { position: static; width: 100%; max-width: 440px; }
   .casefile { position: relative; top: 0; transform: none; width: 100%; max-width: 440px; min-height: 0; margin-top: 14px; }
   .guesses ol { flex-direction: row; flex-wrap: wrap; }
@@ -207,8 +228,8 @@ body[data-live="1"] { --chrome: 268px; }
 <div class="wrap">
   <header>
     <div class="brand">
-      <button type="button" id="home" aria-label="Wherld home">wherld</button>
-      <p>Where in the world? Name the mystery country before your rival does.</p>
+      <button type="button" id="home" aria-label="Where's Pi home"><span class="pi-logo" data-pi aria-hidden="true"></span>Where's Pi</button>
+      <p>Pi the goldendoodle is hiding in a mystery country. Sniff out where.</p>
     </div>
     <div class="chips" id="chips" hidden>
       <span>Rating <b id="chip-rating"></b></span>
@@ -225,7 +246,7 @@ body[data-live="1"] { --chrome: 268px; }
 
     <div class="guessbar">
       <form class="guess-form" id="form" autocomplete="off">
-        <input id="guess" type="text" placeholder="Type a country" aria-label="Guess a country" role="combobox" aria-expanded="false" aria-controls="suggest" aria-autocomplete="list" spellcheck="false">
+        <input id="guess" type="text" placeholder="Where's Pi? Type a country" aria-label="Guess the country Pi is hiding in" role="combobox" aria-expanded="false" aria-controls="suggest" aria-autocomplete="list" spellcheck="false">
         <button type="submit" id="go">Guess</button>
         <ul id="suggest" role="listbox" hidden></ul>
       </form>
@@ -233,7 +254,7 @@ body[data-live="1"] { --chrome: 268px; }
     </div>
 
     <div class="globe-box">
-      <canvas id="globe" aria-label="Globe. Drag to spin, scroll or pinch to zoom. Guessed countries are colored by distance from the answer."></canvas>
+      <canvas id="globe" aria-label="Globe. Drag to spin, scroll or pinch to zoom. Guessed countries are colored by how far they are from Pi."></canvas>
       <div class="toast" id="toast" aria-hidden="true"></div>
       <div class="legend"><span>far</span><i></i><span>close</span></div>
       <div class="zoom">
@@ -243,19 +264,27 @@ body[data-live="1"] { --chrome: 268px; }
     </div>
 
     <section class="lobby" id="lobby" aria-label="Lobby">
+     <div class="peek" aria-hidden="true"><span data-pi></span></div>
      <div class="lobby-in">
-      <p class="lb-brand" aria-hidden="true">wherld</p>
-      <div class="postmark" aria-hidden="true">Live<b>1 v 1</b>World wide</div>
       <div id="lb-menu" style="display:contents">
-        <h2>Race a rival to name the country.</h2>
+        <p class="flyer-kicker">Have you seen this dog?</p>
+        <h2>Where's Pi?</h2>
+        <div class="flyer-row">
+          <div class="pi-photo" data-pi role="img" aria-label="Pi, a fluffy golden goldendoodle"></div>
+          <dl class="facts">
+            <dt>Name</dt><dd>Pi, goldendoodle</dd>
+            <dt>Last seen</dt><dd>Somewhere on Earth</dd>
+            <dt>Reward</dt><dd>25 coins a find</dd>
+          </dl>
+        </div>
         <div class="who" id="who" hidden>
           <div><i>Player</i><b id="who-name"></b><small id="who-stats"></small></div>
           <button type="button" class="link" id="rename">Change name</button>
         </div>
-        <button type="button" class="btn primary" id="play-online">Play online<small>1 v 1 race · 2 minutes · rated</small></button>
+        <button type="button" class="btn primary" id="play-online">Play online<small>Race a rival to find Pi · 2 minutes · rated</small></button>
         <p class="note" id="offline" hidden>Online play can't connect from here. Play ranked matches at wherld.com.</p>
         <div class="two">
-          <button type="button" class="btn" id="play-daily">Daily case<small id="daily-sub">One a day</small></button>
+          <button type="button" class="btn" id="play-daily">Daily search<small id="daily-sub">One a day</small></button>
           <button type="button" class="btn" id="play-practice">Practice<small>Unlimited, unrated</small></button>
         </div>
         <div class="board">
@@ -443,6 +472,26 @@ async function rpc(fn, args) {
   return j;
 }
 
+/* ---------- Pi, the goldendoodle (original mascot, drawn here) ---------- */
+function piSVG() {
+  let curls = "";
+  for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; curls += '<circle cx="' + (60 + 33 * Math.cos(a)).toFixed(1) + '" cy="' + (62 + 33 * Math.sin(a)).toFixed(1) + '" r="11"/>'; }
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">' +
+    '<g class="pi-ear-l"><ellipse cx="20" cy="68" rx="14" ry="27" transform="rotate(12 20 68)" fill="#c58a2e"/></g>' +
+    '<g class="pi-ear-r"><ellipse cx="100" cy="68" rx="14" ry="27" transform="rotate(-12 100 68)" fill="#c58a2e"/></g>' +
+    '<g fill="#e3ad55"><circle cx="60" cy="62" r="36"/>' + curls + '</g>' +
+    '<g fill="#efc77a"><circle cx="47" cy="27" r="11"/><circle cx="60" cy="22" r="12"/><circle cx="73" cy="27" r="11"/><circle cx="53" cy="37" r="9"/><circle cx="67" cy="37" r="9"/></g>' +
+    '<g fill="#f6e3b8"><ellipse cx="60" cy="81" rx="20" ry="15"/><circle cx="45" cy="80" r="9"/><circle cx="75" cy="80" r="9"/></g>' +
+    '<g class="pi-eyes"><circle cx="46" cy="59" r="5.2" fill="#2a1c12"/><circle cx="74" cy="59" r="5.2" fill="#2a1c12"/><circle cx="47.6" cy="57.2" r="1.6" fill="#fff"/><circle cx="75.6" cy="57.2" r="1.6" fill="#fff"/></g>' +
+    '<path d="M55 88 q5 11 10 0 z" fill="#e8788a"/>' +
+    '<ellipse cx="60" cy="73" rx="7.5" ry="5.2" fill="#2a1c12"/>' +
+    '<path d="M60 78 v5 M60 83 q-6 6 -11 1 M60 83 q6 6 11 1" stroke="#2a1c12" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
+    '</svg>';
+}
+document.querySelectorAll("[data-pi]").forEach((el) => { el.innerHTML = piSVG(); });
+const piImg = new Image(); piImg.onload = () => { dirty = true; }; piImg.src = "data:image/svg+xml;utf8," + encodeURIComponent(piSVG());
+(function favicon() { const l = document.createElement("link"); l.rel = "icon"; l.href = piImg.src; document.head.append(l); })();
+
 /* ---------- Helpers ---------- */
 const $ = (id) => document.getElementById(id);
 const norm = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
@@ -473,7 +522,7 @@ const canvas = $("globe"), ctx = canvas.getContext("2d");
 const projection = d3.geoOrthographic().clipAngle(90).precision(0.6);
 const path = d3.geoPath(projection, ctx);
 const graticule = d3.geoGraticule10();
-let landGeo = null, borderGeo = null, dirty = false;
+let landGeo = null, borderGeo = null, dirty = false, piHop = false;
 let size = 0, W = 0, H = 0, zoom = 1, zoomTarget = 1, spinning = !reduceMotion, flyTimer = null, pulseKey = null, pulseStart = 0;
 projection.rotate([20, -18]);
 
@@ -514,6 +563,14 @@ function draw() {
     }
   }
   ctx.beginPath(); path({ type: "Sphere" }); ctx.strokeStyle = "rgba(242,162,58,0.35)"; ctx.lineWidth = 1.5; ctx.stroke();
+  if (M.done && M.answer && piImg.complete && byKey.get(M.answer)) {
+    const c = byKey.get(M.answer).center;
+    if (d3.geoDistance(c, [-rot[0], -rot[1]]) < Math.PI / 2 - 0.05) {
+      const p = projection(c), sz = 46, hop = reduceMotion ? 0 : Math.abs(Math.sin(now / 320)) * 5;
+      ctx.drawImage(piImg, p[0] - sz / 2, p[1] - sz + 6 - hop, sz, sz);
+      piHop = !reduceMotion;
+    }
+  }
 }
 function flyTo(lonlat) {
   spinning = false;
@@ -586,6 +643,7 @@ function flyTo(lonlat) {
       if (Math.hypot(vx, vy) < 0.01) coasting = false;
     }
     if (pulseKey && performance.now() - pulseStart < 1700) dirty = true;
+    if (piHop) { piHop = false; dirty = true; }
     if (dirty) { dirty = false; draw(); }
   });
 })();
@@ -670,7 +728,7 @@ function feedback(before, after) {
   else if (g.d < 1500) { word = "Hot start"; cls = "warmer"; } else if (g.d < 4000) { word = "Warm start"; cls = ""; } else { word = "Cold start"; cls = "colder"; }
   toast(word, cls);
   const m = $("msg"); m.textContent = "";
-  m.append(word + ". " + cty.name + " is " + miles(g.d) + " off " + arrow(g.b) + " ");
+  m.append(word + ". " + cty.name + " is " + miles(g.d) + " from Pi " + arrow(g.b) + " ");
   if (after.clues.length > before.clues.length) {
     const i = after.clues.length - 1, b = document.createElement("b");
     b.textContent = CLUE_LABELS[i] + ": " + clueText(i, after.clues[i]);
@@ -702,7 +760,7 @@ async function submit(key) {
   if (after.done) {
     solo.fresh = -1; $("msg").textContent = "";
     if (solo.mode === "daily") recordDaily(after.won);
-    toast(after.won ? "Case closed" : "Out of guesses", after.won ? "good" : "colder");
+    toast(after.won ? "Found Pi!" : "Pi stays hidden", after.won ? "good" : "colder");
     flyTo(byKey.get(solo.answer).center);
   } else feedback(before, after);
   render();
@@ -778,7 +836,7 @@ function applyLive(s, mine) {
     feedback(before, after); lastFeedback = Date.now();
   } else if (was && s.opp && was.opp && s.opp.guesses.length > was.opp.guesses.length && Date.now() - lastFeedback > 5000) {
     const og = s.opp.guesses[s.opp.guesses.length - 1];
-    $("msg").textContent = s.opp.name + " guessed " + miles(og.d) + " from the answer.";
+    $("msg").textContent = s.opp.name + " is sniffing " + miles(og.d) + " from Pi.";
   }
   render();
 }
@@ -800,10 +858,10 @@ function shareText() {
   if (M.kind === "live") {
     const r = live.s.result, word = r.winner === "me" ? "won" : r.winner === "opp" ? "lost" : "drew";
     const sq = M.guesses.map((g) => g.ok ? "🟩" : g.d < 4000 ? "🟥" : "🟦").join("");
-    return "Wherld 1v1: I " + word + " against " + live.s.opp.name + " (" + r.answerName + ")\n" + sq + "\nRating " + live.s.me.rating + " · wherld.com";
+    return "Where's Pi 1v1: I " + word + " against " + live.s.opp.name + " (" + r.answerName + ")\n" + sq + "\nRating " + live.s.me.rating + " · wherld.com";
   }
   const sq = M.guesses.map((g) => g.ok ? "🟩" : g.d < 4000 ? "🟥" : "🟦").join("");
-  const title = M.kind === "daily" ? "Wherld #" + (solo.day + 1) : "Wherld (practice)";
+  const title = M.kind === "daily" ? "Where's Pi #" + (solo.day + 1) : "Where's Pi (practice)";
   return title + "  " + (M.won ? M.guesses.length : "X") + "/" + MAX_GUESSES + "\n" + sq + "\nwherld.com";
 }
 
@@ -889,27 +947,27 @@ function render() {
   // input
   const blocked = M.done || out || (isLive && !M.started);
   $("guess").disabled = blocked; $("go").disabled = blocked;
-  $("guess").placeholder = M.done ? "Case closed" : out ? "Out of guesses. Waiting on the clock." : isLive && !M.started ? "Get ready" : "Type a country";
+  $("guess").placeholder = M.done ? "Round over" : out ? "Out of guesses. Waiting on the clock." : isLive && !M.started ? "Get ready" : "Where's Pi? Type a country";
 
   // verdict
   $("verdict").hidden = !M.done;
   if (M.done) {
     const stamp = $("stamp"), gains = $("gains");
-    $("ans").textContent = byKey.get(M.answer) ? byKey.get(M.answer).name : (isLive ? live.s.result.answerName : "");
+    $("ans").textContent = "Pi was in " + (byKey.get(M.answer) ? byKey.get(M.answer).name : (isLive ? live.s.result.answerName : ""));
     if (isLive) {
       const r = live.s.result, opp = live.s.opp.name;
       stamp.textContent = r.winner === "me" ? "Victory" : r.winner === "opp" ? "Defeat" : "Draw";
       stamp.className = "stamp " + (r.winner === "me" ? "win" : r.winner === "opp" ? "loss" : "draw");
       const lead = r.outcome === "solved" ? "" : r.outcome === "time" ? "Time ran out. " : "Both of you ran out of guesses. ";
-      $("scoreline").textContent = r.outcome === "solved" ? (r.winner === "me" ? "You solved it first." : opp + " solved it first.")
+      $("scoreline").textContent = r.outcome === "solved" ? (r.winner === "me" ? "You found Pi first." : opp + " found Pi first.")
         : lead + (r.winner === "me" ? "Your closest guess was nearer." : r.winner === "opp" ? opp + "'s closest guess was nearer." : "Nobody was closer.");
       gains.hidden = false;
       gains.textContent = "Rating " + (r.delta >= 0 ? "+" : "") + r.delta + " (" + live.s.me.rating + ") · Coins +" + r.coins;
       $("again").hidden = false; $("again").textContent = "Play again";
     } else {
-      stamp.textContent = M.won ? "Case closed" : "Cold case"; stamp.className = "stamp " + (M.won ? "win" : "loss");
+      stamp.textContent = M.won ? "Found Pi" : "Still hiding"; stamp.className = "stamp " + (M.won ? "win" : "loss");
       const pts = MAX_GUESSES + 1 - M.guesses.length;
-      $("scoreline").textContent = M.won ? "Solved on guess " + M.guesses.length + " of " + MAX_GUESSES + " for " + pts + (pts === 1 ? " point." : " points.") + (M.kind === "daily" ? " A new case opens at midnight." : "") : "Out of guesses. " + (M.kind === "daily" ? "A new case opens at midnight." : "Try another one.");
+      $("scoreline").textContent = M.won ? "Found on guess " + M.guesses.length + " of " + MAX_GUESSES + " for " + pts + (pts === 1 ? " point." : " points.") + (M.kind === "daily" ? " Pi hides again at midnight." : "") : "Out of guesses. " + (M.kind === "daily" ? "Pi hides again at midnight." : "Try another round.");
       gains.hidden = true;
       $("again").hidden = M.kind === "daily"; $("again").textContent = "New round";
     }

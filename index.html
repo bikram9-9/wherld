@@ -78,6 +78,10 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 .bot-tag { font-family: var(--font-mono); font-size: 10px; border: 1px solid var(--muted); border-radius: 4px; padding: 0 4px; margin-left: 6px; color: var(--muted); vertical-align: 1px; }
 .clock { font-family: var(--font-mono); font-weight: 600; font-size: 22px; font-variant-numeric: tabular-nums; color: var(--amber); min-width: 5ch; text-align: center; }
 .clock.low { color: #ff6b5e; }
+.mid { display: flex; flex-direction: column; align-items: center; }
+.resign { background: none; border: 0; padding: 0 4px; color: var(--muted); font-family: var(--font-mono); font-size: 11px; text-decoration: underline; cursor: pointer; }
+.resign:hover, .resign.sure { color: #ff6b5e; }
+.textlink { background: none; border: 0; padding: 2px; color: var(--doodle-deep); font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; align-self: center; }
 .clock.pre { font-size: 14px; color: var(--text); }
 .pips { display: flex; gap: 4px; margin-top: 3px; }
 .pips i { width: 11px; height: 11px; border-radius: 50%; border: 1px solid var(--line); background: transparent; }
@@ -300,7 +304,7 @@ body[data-live="1"] { --chrome: 268px; }
   <main class="stage">
     <div class="versus" id="versus" hidden>
       <div class="side"><b id="vs-me"></b><small id="vs-me-rt"></small></div>
-      <div class="clock" id="clock" role="timer" aria-live="off">2:00</div>
+      <div class="mid"><div class="clock" id="clock" role="timer" aria-live="off">2:00</div><button type="button" class="resign" id="resign" hidden>Resign</button></div>
       <div class="side opp"><span><b id="vs-opp"></b><span class="bot-tag" id="vs-bot" hidden>BOT</span></span><small id="vs-opp-rt"></small><span class="pips" id="pips" aria-label="Rival's guesses"></span></div>
     </div>
 
@@ -364,6 +368,7 @@ body[data-live="1"] { --chrome: 268px; }
             <label for="au-pass">Password<input id="au-pass" type="password" autocomplete="current-password" minlength="8" required></label>
             <div class="modes two-col"><button type="submit" class="btn" id="au-signin">Sign in</button><button type="button" class="btn" id="au-create">Create account</button></div>
           </form>
+          <button type="button" class="textlink" id="au-forgot">Forgot password?</button>
         </div>
         <div id="au-in" hidden style="display:contents">
           <p id="au-who" style="text-align:center;overflow-wrap:anywhere"></p>
@@ -375,6 +380,12 @@ body[data-live="1"] { --chrome: 268px; }
         <p class="record"><a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a> · support@wherespi.com</p>
         <button type="button" class="btn" data-back>Back</button>
       </div>
+      <form id="lb-newpass" hidden style="display:contents">
+        <p class="flyer-kicker">Choose a new password</p>
+        <label for="np-pass">New password<input id="np-pass" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button type="submit" class="btn primary" id="np-save">Save password</button>
+        <p class="note" id="np-err" hidden></p>
+      </form>
       <form id="lb-mfa" hidden style="display:contents">
         <p class="flyer-kicker">Two-step sign-in</p>
         <label for="mfa-code">6-digit code from your authenticator app<input id="mfa-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></label>
@@ -586,10 +597,12 @@ const EPOCH = new Date(2026, 10, 16); // daily case #1
 /* ---------- Server (Supabase). The key below is the public one, safe to ship. ---------- */
 const SB_URL = "https://wyvstvxrjdcmvmmdvunp.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dnN0dnhyamRjbXZtbWR2dW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4ODEyMjEsImV4cCI6MjExMDQ1NzIyMX0.fIVQecib_eAua7j3bVBY5SNoBUkyuGhCyuyy0Y4YNRs";
+let recovering = /type=recovery/.test(location.hash + location.search);
 const authReturnError = (/error_description=([^&]+)/.exec(location.hash + location.search) || [])[1];
 // Accounts: Supabase Auth keeps the session in this browser and refreshes it, so people stay signed in until they sign out.
 const sb = window.supabase && window.supabase.createClient ? window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }) : null;
 let session = null;
+if (sb) sb.auth.onAuthStateChange((ev) => { if (ev === "PASSWORD_RECOVERY") { recovering = true; if (typeof render === "function" && countries.length) { view = "home"; lobby = "newpass"; render(); } } });
 async function bearer() {
   if (!sb) return SB_KEY;
   try { const { data } = await sb.auth.getSession(); session = data.session; } catch (e) { session = null; }
@@ -895,11 +908,10 @@ function model() {
 }
 
 /* ---------- Solo modes: daily, practice, city hunt, blitz ---------- */
+// The server checks daily results with this same rule (wh_private.daily_key), so keep the two in step.
 function dailyAnswer(day) {
-  const cycle = Math.floor(day / answerPool.length), rnd = mulberry(7919 + cycle * 104729);
-  const order = answerPool.slice();
-  for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
-  return order[((day % order.length) + order.length) % order.length];
+  const n = answerPool.length;
+  return answerPool[(((day * 37 + 11 + 17 * Math.floor(day / n)) % n) + n) % n];
 }
 function saveDaily() { store.set("sd-daily", { day: solo.day, guesses: solo.guesses, hint: solo.hint, t0: solo.t0, sent: solo.sent, extra: solo.extra }); }
 function startSolo(mode, opt) {
@@ -910,11 +922,14 @@ function startSolo(mode, opt) {
     solo = { mode, day, answer: dailyAnswer(day), guesses: same ? saved.guesses.filter((k) => byKey.has(k)) : [], fresh: -1,
       hint: same ? saved.hint || null : null, t0: same && saved.t0 ? saved.t0 : Date.now(), sent: same && !!saved.sent, extra: same ? saved.extra || null : null };
     saveDaily();
+    if (profile && online && !solo.sent) rpc("wh_daily_start", { p_token: token(), p_day: day }).catch(() => {});
   } else if (mode === "city") {
     solo = { mode, answer: pick(cityKeys, prev), guesses: [], fresh: -1, hint: null };
   } else if (mode === "blitz") {
     solo = { mode, minutes: opt, answer: pick(answerPool, prev), guesses: [], fresh: -1, hint: null, score: 0, missed: 0, endsAt: Date.now() + opt * 60000, over: false, extra: null };
     clockTimer = setInterval(tickClock, 250);
+    const run = solo;
+    if (profile && online) rpc("wh_blitz_start", { p_token: token(), p_minutes: opt }).then((r) => { run.run = r.run; }).catch(() => {});
   } else {
     solo = { mode: "practice", answer: pick(answerPool, prev), guesses: [], fresh: -1, hint: null };
   }
@@ -928,7 +943,7 @@ function enterPlay() {
 }
 function goHome() {
   if (view === "home" && (lobby === "searching" || lobby === "challenge")) { cancelSearch(); return; }
-  if (live && live.s && live.s.status === "active") { $("msg").textContent = "This match is still running. It ends when someone finds Pi or the clock hits zero."; return; }
+  if (live && live.s && live.s.status === "active") { askResign(); return; }
   view = "home"; lobby = "menu"; stopPolling(); live = null; solo = null;
   zoomTarget = 1; spinning = !reduceMotion;
   render(); loadBoard();
@@ -945,7 +960,7 @@ async function finishDaily(won) {
   if (!profile || !online || solo.sent) return;
   const mine = solo;
   try {
-    const r = await rpc("wh_daily_submit", { p_token: token(), p_day: mine.day, p_guesses: mine.guesses.length, p_won: won, p_ms: Date.now() - mine.t0 });
+    const r = await rpc("wh_daily_submit", { p_token: token(), p_day: mine.day, p_guesses: mine.guesses, p_ms: Date.now() - mine.t0 });
     profile = r.me; boards.today = r.board;
     if (solo === mine) { solo.sent = true; solo.extra = { streak: r.streak, bonus: r.bonus }; saveDaily(); }
     render();
@@ -964,9 +979,9 @@ async function endBlitz() {
   solo.over = true; solo.guesses = []; clearInterval(clockTimer); clockTimer = null;
   toast("Time!", ""); $("msg").textContent = "";
   render();
-  if (!profile || !online) return;
+  if (!profile || !online || !mine.run) return;
   try {
-    const r = await rpc("wh_blitz_submit", { p_token: token(), p_minutes: mine.minutes, p_score: mine.score });
+    const r = await rpc("wh_blitz_submit", { p_token: token(), p_run: mine.run, p_score: mine.score });
     profile = r.me; boards["blitz" + mine.minutes] = r.board;
     if (solo === mine) solo.extra = { best: r.best, earned: r.earned };
     render();
@@ -1104,6 +1119,29 @@ async function signInEmail(create) {
     await syncAccount();
   } catch (e) { authError("au-err", "Can't reach the sign-in service. Check your connection."); }
   finally { $("au-signin").disabled = $("au-create").disabled = false; }
+}
+async function forgotPassword() {
+  const email = $("au-email").value.trim();
+  if (!/^\S+@\S+\.\S+$/.test(email)) return authError("au-err", "Type your email above, then tap Forgot password.");
+  $("au-forgot").disabled = true;
+  try {
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+    authError("au-err", error ? "We couldn't send the reset email just now. Try again later or write to support@wherespi.com." : "If that email has an account, a reset link is on its way.");
+  } catch (e) { authError("au-err", "Can't reach the sign-in service. Check your connection."); }
+  finally { $("au-forgot").disabled = false; }
+}
+async function saveNewPassword() {
+  const password = $("np-pass").value;
+  if (password.length < 8) return authError("np-err", "Use a password with at least 8 characters.");
+  authError("np-err", ""); $("np-save").disabled = true;
+  try {
+    const { error } = await sb.auth.updateUser({ password });
+    if (error) return authError("np-err", error.message);
+    $("np-pass").value = ""; recovering = false; lobby = "menu"; lobbyNote = "Password updated. You're signed in.";
+    try { history.replaceState(null, "", location.pathname); } catch (e) { /* hash stays */ }
+    await syncAccount(); render();
+  } catch (e) { authError("np-err", "Can't reach the sign-in service. Check your connection."); }
+  finally { $("np-save").disabled = false; }
 }
 async function signOut() {
   stopPolling(); live = null;
@@ -1248,6 +1286,21 @@ async function joinChallenge(code) {
     try { history.replaceState(null, "", location.pathname); } catch (e) { /* hash stays */ }
   } catch (e) { lobby = "menu"; if (e.network) online = false; else lobbyNote = e.message; render(); }
 }
+let resignArmed = 0;
+async function askResign() {
+  if (!live || !live.s || live.s.status !== "active") return;
+  const b = $("resign");
+  if (Date.now() - resignArmed > 6000) {
+    resignArmed = Date.now(); b.textContent = "Tap again to resign"; b.classList.add("sure");
+    $("msg").textContent = "Leaving now counts as a loss. Tap Resign again to confirm.";
+    setTimeout(() => { if (Date.now() - resignArmed >= 6000) { b.textContent = "Resign"; b.classList.remove("sure"); } }, 6100);
+    return;
+  }
+  resignArmed = 0; b.disabled = true;
+  try { const s = await rpc("wh_resign", { p_token: token(), p_match: live.id }); if (live && s.id === live.id && s.status === "done") applyLive(s, false); }
+  catch (e) { $("msg").textContent = e.message; }
+  finally { b.disabled = false; b.textContent = "Resign"; b.classList.remove("sure"); }
+}
 async function cancelSearch() {
   stopPolling(); live = null; lobby = "menu"; render();
   try { await rpc("wh_cancel", { p_token: token() }); } catch (e) { /* nothing waiting */ }
@@ -1266,7 +1319,7 @@ function applyLive(s, mine) {
   if (s.status === "waiting") { render(); return; }
   if (view !== "play") {
     live.fresh = -1; enterPlay();
-    toast((s.rated ? "Rival found: " : "Your friend is here: ") + s.opp.name, "");
+    toast((s.rated ? "Rival found: " : s.opp.bot ? "Practice rival: " : "Your friend is here: ") + s.opp.name, "");
   }
   const after = model();
   const grew = after.guesses.length > (was ? was.guesses.length : 0);
@@ -1352,7 +1405,7 @@ function render() {
   if (profile) { $("chip-rating").textContent = profile.rating; $("chip-coins").textContent = profile.coins; }
 
   // lobby
-  ["menu", "name", "search", "shop", "blitz", "challenge", "boards", "account", "mfa", "mfasetup"].forEach((k) => { $("lb-" + k).hidden = lobby !== (k === "search" ? "searching" : k); });
+  ["menu", "name", "search", "shop", "blitz", "challenge", "boards", "account", "newpass", "mfa", "mfasetup"].forEach((k) => { $("lb-" + k).hidden = lobby !== (k === "search" ? "searching" : k); });
   $("who").hidden = !profile;
   if (profile) { $("who-name").textContent = profile.name; $("who-stats").textContent = "Your ranked record: " + profile.wins + " W · " + profile.losses + " L · " + profile.draws + " D"; } else $("who-stats").textContent = "";
   $("play-online").disabled = !online; $("play-friend").disabled = !online; $("open-shop").disabled = !online; $("offline").hidden = online;
@@ -1376,13 +1429,14 @@ function render() {
   if (isLive) {
     const s = live.s;
     $("vs-me").textContent = s.me.name; $("vs-me-rt").textContent = "You · " + s.me.rating;
-    $("vs-opp").textContent = s.opp.name; $("vs-bot").hidden = !s.opp.bot; $("vs-opp-rt").textContent = (s.rated ? "Rival · " : "Friend · ") + s.opp.rating;
+    $("vs-opp").textContent = s.opp.name; $("vs-bot").hidden = !s.opp.bot; $("vs-opp-rt").textContent = (s.rated ? "Rival · " : s.opp.bot ? "Practice · " : "Friend · ") + s.opp.rating;
+    $("resign").hidden = s.status !== "active";
     const pips = $("pips"); pips.textContent = ""; pips.hidden = false;
     for (let i = 0; i < MAX_GUESSES; i++) { const p = document.createElement("i"), og = s.opp.guesses[i]; if (og) { p.style.background = og.ok ? "#3fae6b" : heatFor(og.d); p.style.borderColor = "transparent"; p.title = og.ok ? "Found Pi" : miles(og.d) + " off"; } pips.append(p); }
     if (s.status === "done") { $("clock").textContent = "Final"; $("clock").className = "clock pre"; }
   } else if (isBlitz) {
     $("vs-me").textContent = "Blitz · " + solo.minutes + " min"; $("vs-me-rt").textContent = "Six guesses per country";
-    $("vs-opp").textContent = solo.score + " found"; $("vs-bot").hidden = true; $("vs-opp-rt").textContent = solo.missed + " missed"; $("pips").hidden = true;
+    $("vs-opp").textContent = solo.score + " found"; $("vs-bot").hidden = true; $("vs-opp-rt").textContent = solo.missed + " missed"; $("pips").hidden = true; $("resign").hidden = true;
     if (solo.over) { $("clock").textContent = "Time"; $("clock").className = "clock pre"; }
   }
 
@@ -1452,11 +1506,14 @@ function render() {
       stamp.textContent = r.winner === "me" ? "Victory" : r.winner === "opp" ? "Defeat" : "Draw";
       stamp.className = "stamp " + (r.winner === "me" ? "win" : r.winner === "opp" ? "loss" : "draw");
       const lead = r.outcome === "time" ? "Time ran out. " : "Both of you ran out of guesses. ";
-      $("scoreline").textContent = r.outcome === "solved" ? (r.winner === "me" ? "You found Pi first." : opp + " found Pi first.")
+      $("scoreline").textContent = r.outcome === "resign" ? (r.winner === "me" ? opp + " resigned." : "You resigned.")
+        : r.outcome === "abandon" ? (r.winner === "me" ? opp + " left the match." : "You were away too long, so the match went to " + opp + ".")
+        : r.outcome === "solved" ? (r.winner === "me" ? "You found Pi first." : opp + " found Pi first.")
         : lead + (r.winner === "me" ? "Your closest guess was nearer." : r.winner === "opp" ? opp + "'s closest guess was nearer." : "Nobody was closer.");
       gains.hidden = false;
-      gains.textContent = live.s.rated ? "Rating " + (r.delta >= 0 ? "+" : "") + r.delta + " (" + live.s.me.rating + ") · Coins +" + r.coins : "Friendly match. No rating or coins.";
-      again.textContent = live.s.rated ? "Play again" : "New challenge";
+      gains.textContent = live.s.rated ? "Rating " + (r.delta >= 0 ? "+" : "") + r.delta + " (" + live.s.me.rating + ") · Coins +" + r.coins + (r.coins === 0 && r.winner === "me" ? " (daily coin limit reached)" : "")
+        : live.s.opp.bot ? "Practice match. You've played today's 15 ranked games against bots." : "Friendly match. No rating or coins.";
+      again.textContent = live.s.rated || live.s.opp.bot ? "Play again" : "New challenge";
     } else if (isBlitz) {
       stamp.textContent = "Time"; stamp.className = "stamp draw";
       $("ans").textContent = "Pi found " + solo.score + (solo.score === 1 ? " time" : " times");
@@ -1550,6 +1607,9 @@ $("open-account").addEventListener("click", () => { if (!leavePlay()) return; lo
 $("au-google").addEventListener("click", signInGoogle);
 $("au-form").addEventListener("submit", (e) => { e.preventDefault(); signInEmail(false); });
 $("au-create").addEventListener("click", () => signInEmail(true));
+$("au-forgot").addEventListener("click", forgotPassword);
+$("lb-newpass").addEventListener("submit", (e) => { e.preventDefault(); saveNewPassword(); });
+$("resign").addEventListener("click", askResign);
 $("au-rename").addEventListener("click", editName);
 $("au-mfa").addEventListener("click", mfaToggle);
 $("au-signout").addEventListener("click", signOut);
@@ -1623,6 +1683,7 @@ function start(snap) {
     resize();
     if (authReturnError) lobbyNote = "Sign-in didn't finish: " + decodeURIComponent(authReturnError.replace(/\+/g, " "));
     await syncAccount(); loadBoard();
+    if (recovering && session && lobby !== "mfa") { view = "home"; lobby = "newpass"; render(); }
     if (invite && lobby !== "mfa") needProfile(() => joinChallenge(invite[1]));
   }).catch(() => { $("offline").hidden = false; $("offline").textContent = "The map could not load. Reload the page to try again."; });
 }

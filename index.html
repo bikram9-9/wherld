@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Where's Pi</title>
-<meta name="description" content="Where's Pi: a goldendoodle is hiding in a mystery country. Race a rival to find him on the globe. Live 1 v 1 matches, ratings and coins.">
+<meta name="description" content="Where's Pi: a goldendoodle is hiding in a mystery country. Race a rival to find him on the globe. Live 1 v 1 races, ranks and treats.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Where's Pi">
 <meta property="og:title" content="Where's Pi: find the country Pi is hiding in">
@@ -51,6 +51,7 @@ body { background: var(--ink); color: var(--text); font-family: var(--font-body)
 button { font: inherit; color: inherit; cursor: pointer; }
 :focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 [hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .wrap { max-width: 1280px; margin: 0 auto; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
 header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; }
@@ -74,6 +75,8 @@ header { display: flex; flex-wrap: wrap; align-items: center; justify-content: s
 .chips .pill, .chip-btn { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 12px; color: var(--muted); white-space: nowrap; font-family: var(--font-display); font-size: 14px; font-weight: 600; }
 .chips b { color: var(--text); font-weight: 600; }
 .chips .coin b { color: var(--amber); }
+.treat { display: inline-block; width: 1.5em; height: 0.9em; vertical-align: -0.12em; margin-right: 3px; }
+.chips .coin { display: inline-flex; align-items: center; }
 .chip-btn:hover { border-color: var(--muted); }
 .chip-btn.gold { border-color: var(--doodle); color: var(--doodle); font-weight: 600; }
 .chip-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -305,7 +308,7 @@ body[data-live="1"] { --chrome: 268px; }
       <span id="who" hidden><button type="button" class="chip-btn" id="rename" title="Change your name"><b id="who-name"></b></button></span>
       <span class="chip-group" id="chips" hidden>
         <span class="pill">Rating <b id="chip-rating"></b></span>
-        <span class="pill coin">Coins <b id="chip-coins"></b></span>
+        <span class="pill coin" title="Treats"><span class="treat-icon" aria-hidden="true"></span><span class="sr">Treats</span> <b id="chip-coins"></b></span>
       </span>
       <button type="button" class="chip-btn" id="open-account" hidden>Sign in</button>
       <button type="button" class="chip-btn gold" id="open-shop">Shop</button>
@@ -416,11 +419,11 @@ body[data-live="1"] { --chrome: 268px; }
       </form>
       <div id="lb-shop" hidden style="display:contents">
         <p class="flyer-kicker">Pi's closet</p>
-        <p>You have <b id="shop-coins">0</b> coins.</p>
+        <p>You have <span class="treat-icon" aria-hidden="true"></span><b id="shop-coins">0</b> treats.</p>
         <ul class="shop" id="shop-list"></ul>
         <p class="note" id="shop-note" hidden></p>
         <div id="coin-store" hidden style="display:contents">
-          <p class="group-label">Get more coins</p>
+          <p class="group-label">Get more treats</p>
           <div class="modes" id="coin-packs"></div>
           <p class="note" id="coin-note" hidden></p>
         </div>
@@ -1051,10 +1054,10 @@ async function endBlitz() {
 }
 async function useHint() {
   if (!solo || M.done || solo.hint || solo.mode === "blitz") return;
-  if (!profile) { $("msg").textContent = "Pick a nickname on the home page first. You start with 100 coins."; return; }
+  if (!profile) { $("msg").textContent = "Pick a nickname on the home page first. You start with 100 treats."; return; }
   $("hint").disabled = true;
   try { profile = await rpc("wh_hint", { p_token: token() }); }
-  catch (e) { $("msg").textContent = e.message + (/coins/.test(e.message) ? " Get more in the Shop." : ""); render(); return; }
+  catch (e) { $("msg").textContent = e.message + (/treats/.test(e.message) ? " Get more in the Shop." : ""); render(); return; }
   track("hint", { mode: solo.mode });
   solo.hint = offsetPoint(byKey.get(solo.answer).center, 150 + Math.random() * 550, Math.random() * 360);
   if (solo.mode === "daily") saveDaily();
@@ -1302,7 +1305,7 @@ function paintShop() {
     const has = id === "" || owned.includes(id), li = document.createElement("li");
     const pv = document.createElement("span"); pv.className = "pv"; pv.innerHTML = piSVG({ outfit: id });
     const tx = document.createElement("div"), nm = document.createElement("b"), sm = document.createElement("small");
-    nm.textContent = name; sm.textContent = id === "" ? "No outfit" : has ? "Owned" : price + " coins"; tx.append(nm, sm);
+    nm.textContent = name; sm.textContent = id === "" ? "No outfit" : has ? "Owned" : price + " treats"; tx.append(nm, sm);
     const bt = document.createElement("button"); bt.type = "button"; bt.className = "btn";
     bt.textContent = wearing === id ? "Wearing" : has ? "Wear" : "Buy"; bt.disabled = wearing === id;
     bt.addEventListener("click", async () => {
@@ -1324,7 +1327,7 @@ async function loadCoinStore() {
 }
 async function buyCoins(pack, b) {
   const note = $("coin-note"); note.hidden = true;
-  if (!session) { note.textContent = "Sign in to an account to buy coins, so they're never lost with your browser."; note.hidden = false; return; }
+  if (!session) { note.textContent = "Sign in to an account to buy treats, so they're never lost with your browser."; note.hidden = false; return; }
   b.disabled = true;
   try {
     const auth = await bearer();
@@ -1342,12 +1345,15 @@ function paintCoinStore() {
   box.textContent = ""; box.dataset.ready = String(coinStore.ready);
   packs.forEach((p) => {
     const b = document.createElement("button"), sm = document.createElement("small"); b.type = "button"; b.className = "btn";
-    b.append(p.coins.toLocaleString("en-US") + " coins"); sm.textContent = "$" + p.price.toFixed(2); b.append(sm);
+    b.append(p.coins.toLocaleString("en-US") + " treats"); sm.textContent = "$" + p.price.toFixed(2); b.append(sm);
     b.disabled = !coinStore.ready; b.addEventListener("click", () => buyCoins(p.id, b));
     box.append(b);
   });
-  if (!coinStore.ready) { $("coin-note").textContent = "Coin packs open soon."; $("coin-note").hidden = false; }
+  if (!coinStore.ready) { $("coin-note").textContent = "Treat packs open soon."; $("coin-note").hidden = false; }
 }
+// Pi's currency: a bone-shaped dog biscuit (drawn here, no image file).
+const TREAT_SVG = '<svg class="treat" viewBox="0 0 30 16" aria-hidden="true"><g fill="#e2b06a" stroke="#7a4a14" stroke-width="1.6"><circle cx="5.2" cy="4.8" r="3.9"/><circle cx="5.2" cy="11.2" r="3.9"/><circle cx="24.8" cy="4.8" r="3.9"/><circle cx="24.8" cy="11.2" r="3.9"/><rect x="5" y="4.2" width="20" height="7.6" rx="1.5"/></g><path d="M5.6 4.6h18.8v6.8H5.6z" fill="#e2b06a"/><g fill="#a8692a"><circle cx="11" cy="7" r=".9"/><circle cx="15" cy="9.2" r=".9"/><circle cx="19" cy="7" r=".9"/></g></svg>';
+document.querySelectorAll(".treat-icon").forEach((el) => { el.innerHTML = TREAT_SVG; });
 let paintedOutfit = null;
 function paintPi() {
   const o = (profile && profile.outfit) || "";
@@ -1617,7 +1623,7 @@ function render() {
   $("guess").placeholder = M.done ? "Round over" : out ? "Out of guesses. Waiting on the clock." : isLive && !M.started ? "Get ready" : M.kind === "city" ? "Where's Pi? Type a city" : "Where's Pi? Type a country";
   const canHint = !isLive && !isBlitz && M.kind !== "none";
   $("hint").hidden = !canHint; $("hint").disabled = M.done || !!M.hint || !online;
-  $("hint").textContent = M.hint ? "Trail used" : profile && profile.hintsFree > 0 ? "Trail hint · " + profile.hintsFree + " free" : "Trail hint · " + ((profile && profile.hintPrice) || 20) + " coins";
+  $("hint").textContent = M.hint ? "Trail used" : profile && profile.hintsFree > 0 ? "Trail hint · " + profile.hintsFree + " free" : "Trail hint · " + ((profile && profile.hintPrice) || 20) + " treats";
 
   // verdict
   $("verdict").hidden = !M.done;
@@ -1635,21 +1641,21 @@ function render() {
         : r.outcome === "target" ? (r.winner === "me" ? "You found Pi " + n + " times first." : opp + " found Pi " + n + " times first.")
         : "Time ran out. " + (r.winner === "draw" ? "It's a tie." : tied ? (r.winner === "me" ? "Tied on finds, but you got there first." : "Tied on finds, but " + opp + " got there first.") : r.winner === "me" ? "You found more." : opp + " found more.");
       gains.hidden = false;
-      gains.textContent = live.s.rated ? "Rating " + (r.delta >= 0 ? "+" : "") + r.delta + " (" + live.s.me.rating + ") · Coins +" + r.coins + (r.coins === 0 && r.winner === "me" ? " (daily coin limit reached)" : "")
-        : live.s.opp.bot ? "Practice match. You've played today's 15 ranked games against bots." : "Friendly match. No rating or coins.";
+      gains.textContent = live.s.rated ? "Rating " + (r.delta >= 0 ? "+" : "") + r.delta + " (" + live.s.me.rating + ") · Treats +" + r.coins + (r.coins === 0 && r.winner === "me" ? " (daily treat limit reached)" : "")
+        : live.s.opp.bot ? "Practice match. You've played today's 15 ranked games against bots." : "Friendly match. No rating or treats.";
       again.textContent = live.s.rated || live.s.opp.bot ? "Play again" : "New challenge";
     } else if (isBlitz) {
       stamp.textContent = "Time"; stamp.className = "stamp draw";
       $("ans").textContent = "Pi found " + solo.score + (solo.score === 1 ? " time" : " times");
       $("scoreline").textContent = solo.missed + " missed on the " + solo.minutes + " minute clock." + (solo.extra ? " Your best: " + solo.extra.best + "." : profile ? "" : " Pick a nickname on the home page to save scores.");
-      if (solo.extra) { gains.hidden = false; gains.textContent = "Coins +" + solo.extra.earned; }
+      if (solo.extra) { gains.hidden = false; gains.textContent = "Treats +" + solo.extra.earned; }
       again.textContent = "Play again";
     } else {
       stamp.textContent = M.won ? "Found Pi" : "Still hiding"; stamp.className = "stamp " + (M.won ? "win" : "loss");
       $("ans").textContent = "Pi was in " + byKey.get(M.answer).name;
       const pts = MAX_GUESSES + 1 - M.guesses.length, daily = M.kind === "daily";
       $("scoreline").textContent = M.won ? "Found on guess " + M.guesses.length + " of " + MAX_GUESSES + " for " + pts + (pts === 1 ? " point." : " points.") + (daily ? " Pi hides again at midnight." : "") : "Out of guesses. " + (daily ? "Pi hides again at midnight." : "Try another round.");
-      if (daily && solo.extra) { gains.hidden = false; gains.textContent = "Streak " + solo.extra.streak + (solo.extra.bonus ? " · Coins +" + solo.extra.bonus : ""); }
+      if (daily && solo.extra) { gains.hidden = false; gains.textContent = "Streak " + solo.extra.streak + (solo.extra.bonus ? " · Treats +" + solo.extra.bonus : ""); }
       again.hidden = daily; again.textContent = "New round";
     }
   }
@@ -1819,7 +1825,7 @@ function start(snap) {
     if (coinsBack) {
       try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) { /* keep url */ }
       if (coinsBack[1] === "success") {
-        lobbyNote = "Payment received. Your coins will show up in a few seconds."; render();
+        lobbyNote = "Payment received. Your treats will show up in a few seconds."; render();
         [3000, 8000, 20000].forEach((ms) => setTimeout(() => { if (session) syncAccount(); else loadProfile(); }, ms));
       } else { lobbyNote = "Checkout canceled. No charge was made."; render(); }
     }

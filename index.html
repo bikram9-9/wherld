@@ -75,6 +75,7 @@ header { display: flex; flex-wrap: wrap; align-items: center; justify-content: s
 .chips .pill, .chip-btn { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 12px; color: var(--muted); white-space: nowrap; font-family: var(--font-display); font-size: 14px; font-weight: 600; }
 .chips b { color: var(--text); font-weight: 600; }
 .chips .coin b { color: var(--amber); }
+.rank-chip { text-decoration: none; } .rank-chip:hover { border-color: var(--doodle); color: var(--text); }
 .treat { display: inline-block; width: 1.5em; height: 0.9em; vertical-align: -0.12em; margin-right: 3px; }
 .chips .coin { display: inline-flex; align-items: center; }
 .chip-btn:hover { border-color: var(--muted); }
@@ -307,7 +308,7 @@ body[data-live="1"] { --chrome: 268px; }
     <div class="chips">
       <span id="who" hidden><button type="button" class="chip-btn" id="rename" title="Change your name"><b id="who-name"></b></button></span>
       <span class="chip-group" id="chips" hidden>
-        <span class="pill">Rating <b id="chip-rating"></b></span>
+        <a class="pill rank-chip" href="ranks.html" title="Your rank: open the Ranks page">Rank <b id="chip-rating"></b></a>
         <span class="pill coin" title="Treats"><span class="treat-icon" aria-hidden="true"></span><span class="sr">Treats</span> <b id="chip-coins"></b></span>
       </span>
       <button type="button" class="chip-btn" id="open-account" hidden>Sign in</button>
@@ -366,9 +367,10 @@ body[data-live="1"] { --chrome: 268px; }
       <div id="lb-boards" hidden style="display:contents">
         <p class="flyer-kicker">Leaderboards</p>
         <div class="board">
-          <div class="tabs" role="group" aria-label="Leaderboard"><button type="button" data-tab="ranked">Ranked</button><button type="button" data-tab="today">Today</button><button type="button" data-tab="blitz3">Blitz</button></div>
+          <div class="tabs" role="group" aria-label="Leaderboard"><button type="button" data-tab="ranked">Rank</button><button type="button" data-tab="today">Today</button><button type="button" data-tab="blitz3">Blitz</button></div>
           <ol id="board"></ol>
         </div>
+        <a class="link center" href="ranks.html" id="see-ranks">World and country ranks</a>
         <p class="record" id="who-stats"></p>
         <button type="button" class="btn" data-back>Back</button>
       </div>
@@ -496,6 +498,7 @@ body[data-live="1"] { --chrome: 268px; }
 </div>
 
 <script src="metrics.js"></script>
+<script src="pi.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -680,39 +683,9 @@ async function rpc(fn, args) {
   return j;
 }
 
-/* ---------- Pi, the goldendoodle (original mascot, drawn here). Outfits come from the shop. ---------- */
-const OUTFITS = {
-  shades: '<g><rect x="35" y="52" width="22" height="14" rx="6" fill="#141414"/><rect x="63" y="52" width="22" height="14" rx="6" fill="#141414"/><path d="M57 57 h6 M35 57 l-9 -4 M85 57 l9 -4" stroke="#141414" stroke-width="3" stroke-linecap="round"/><path d="M40 56 l5 -2 M68 56 l5 -2" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.7"/></g>',
-  beret: '<g><ellipse cx="64" cy="19" rx="32" ry="13" fill="#b3202c" transform="rotate(-9 64 19)"/><path d="M66 7 l4 -8" stroke="#b3202c" stroke-width="3.5" stroke-linecap="round"/><ellipse cx="60" cy="29" rx="24" ry="4" fill="#8f1822"/></g>',
-  sombrero: '<g><ellipse cx="60" cy="27" rx="58" ry="11" fill="#d9b25a" stroke="#8a5a1c" stroke-width="2"/><path d="M37 27 q23 -50 46 0 z" fill="#e6c574" stroke="#8a5a1c" stroke-width="2"/><path d="M40 21 q20 9 40 0" stroke="#c2262e" stroke-width="4.5" fill="none"/><path d="M12 27 q48 12 96 0" stroke="#2f8f5b" stroke-width="2.5" fill="none" stroke-dasharray="5 5"/></g>',
-  explorer: '<g><ellipse cx="60" cy="27" rx="42" ry="8" fill="#b9a26a" stroke="#6b5a2e" stroke-width="2"/><path d="M33 27 q27 -38 54 0 z" fill="#cdb87c" stroke="#6b5a2e" stroke-width="2"/><path d="M35 23 q25 7 50 0" stroke="#6b5a2e" stroke-width="4" fill="none"/></g>',
-  santa: '<g><path d="M30 27 q22 -42 66 -18 q-18 0 -8 18 z" fill="#c2182b"/><rect x="26" y="20" width="66" height="13" rx="6.5" fill="#ffffff"/><circle cx="99" cy="11" r="8.5" fill="#ffffff"/></g>',
-  crown: '<g><path d="M34 29 l5 -25 l11 15 l10 -19 l10 19 l11 -15 l5 25 z" fill="#f2c230" stroke="#a87b12" stroke-width="2" stroke-linejoin="round"/><circle cx="60" cy="19" r="3.5" fill="#c2182b"/><circle cx="43" cy="22" r="2.5" fill="#1f4fa3"/><circle cx="77" cy="22" r="2.5" fill="#1f4fa3"/></g>'
-};
-function piSVG(o) {
-  o = o || {}; const fit = o.outfit || "";
-  let curls = "", fur = "";
-  for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; curls += '<circle cx="' + (60 + 33 * Math.cos(a)).toFixed(1) + '" cy="' + (62 + 33 * Math.sin(a)).toFixed(1) + '" r="11"/>'; }
-  for (let d = 195; d <= 345; d += 15) { const a = d * Math.PI / 180; fur += '<circle cx="' + (60 + 48 * Math.cos(a)).toFixed(1) + '" cy="' + (60 + 48 * Math.sin(a)).toFixed(1) + '" r="7.5"/>'; }
-  let s = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + (o.body ? "0 0 120 162" : "0 0 120 120") + '">';
-  if (o.body) s += '<g class="pi-tail"><ellipse cx="98" cy="124" rx="8" ry="21" transform="rotate(38 98 124)" fill="#c58a2e"/></g>' +
-    '<g fill="#e3ad55"><ellipse cx="60" cy="130" rx="31" ry="26"/><circle cx="35" cy="120" r="10"/><circle cx="85" cy="120" r="10"/><circle cx="32" cy="138" r="10"/><circle cx="88" cy="138" r="10"/></g>' +
-    '<g fill="#efc77a"><circle cx="60" cy="116" r="13"/><circle cx="49" cy="127" r="9"/><circle cx="71" cy="127" r="9"/></g>' +
-    '<g fill="#f6e3b8"><ellipse cx="46" cy="153" rx="10" ry="7"/><ellipse cx="74" cy="153" rx="10" ry="7"/></g>';
-  if (fit === "parka") s += '<circle cx="60" cy="60" r="53" fill="#2f6fb0"/>';
-  s += '<g class="pi-ear-l"><ellipse cx="20" cy="68" rx="14" ry="27" transform="rotate(12 20 68)" fill="#c58a2e"/></g>' +
-    '<g class="pi-ear-r"><ellipse cx="100" cy="68" rx="14" ry="27" transform="rotate(-12 100 68)" fill="#c58a2e"/></g>' +
-    '<g fill="#e3ad55"><circle cx="60" cy="62" r="36"/>' + curls + '</g>' +
-    '<g fill="#efc77a"><circle cx="47" cy="27" r="11"/><circle cx="60" cy="22" r="12"/><circle cx="73" cy="27" r="11"/><circle cx="53" cy="37" r="9"/><circle cx="67" cy="37" r="9"/></g>' +
-    '<g fill="#f6e3b8"><ellipse cx="60" cy="81" rx="20" ry="15"/><circle cx="45" cy="80" r="9"/><circle cx="75" cy="80" r="9"/></g>' +
-    '<g class="pi-eyes"><circle cx="46" cy="59" r="5.2" fill="#2a1c12"/><circle cx="74" cy="59" r="5.2" fill="#2a1c12"/><circle cx="47.6" cy="57.2" r="1.6" fill="#fff"/><circle cx="75.6" cy="57.2" r="1.6" fill="#fff"/></g>' +
-    '<path d="M55 88 q5 11 10 0 z" fill="#e8788a"/>' +
-    '<ellipse cx="60" cy="73" rx="7.5" ry="5.2" fill="#2a1c12"/>' +
-    '<path d="M60 78 v5 M60 83 q-6 6 -11 1 M60 83 q6 6 11 1" stroke="#2a1c12" stroke-width="2.2" fill="none" stroke-linecap="round"/>';
-  if (fit === "parka") s += '<g fill="#ffffff">' + fur + '</g>';
-  else s += OUTFITS[fit] || "";
-  return s + '</svg>';
-}
+/* Pi himself (OUTFITS, piSVG) lives in pi.js, shared with the Ranks page. */
+// Rank tiers by rank points; the server uses the same cut-offs (wh_private.tier).
+const tierOf = (r) => r >= 1500 ? "Top Dog" : r >= 1350 ? "Super Sleuth" : r >= 1200 ? "Detective" : r >= 1050 ? "Tracker" : r >= 900 ? "Sniffer" : "Pup";
 const piImg = new Image(); piImg.onload = () => { dirty = true; };
 
 /* ---------- City hunt data: [city, country, lat, lon, metro size, continent, time zone, main language] ---------- */
@@ -1283,7 +1256,7 @@ function paintBoard() {
   rows.slice(0, 10).forEach((r, i) => {
     const li = document.createElement("li"), a = document.createElement("span"), b = document.createElement("span"), c = document.createElement("span");
     a.textContent = i + 1; b.textContent = r.name;
-    c.textContent = boardTab === "ranked" ? r.rating : boardTab === "today" ? (r.won ? r.guesses + "/6 · " + Math.round(r.ms / 1000) + "s" : "missed") : r.score + " found";
+    c.textContent = boardTab === "ranked" ? r.rating + " pts" : boardTab === "today" ? (r.won ? r.guesses + "/6 · " + Math.round(r.ms / 1000) + "s" : "missed") : r.score + " found";
     li.append(a, b, c); ol.append(li);
   });
 }
@@ -1530,7 +1503,7 @@ function render() {
   if (((profile && profile.outfit) || "") !== paintedOutfit) paintPi();
 
   $("chips").hidden = !profile;
-  if (profile) { $("chip-rating").textContent = profile.rating; $("chip-coins").textContent = profile.coins; }
+  if (profile) { $("chip-rating").textContent = profile.rank ? "#" + profile.rank : profile.tier || "Pup"; $("chip-coins").textContent = profile.coins; }
 
   // lobby
   ["menu", "name", "search", "shop", "blitz", "race", "challenge", "boards", "account", "newpass", "mfa", "mfasetup"].forEach((k) => { $("lb-" + k).hidden = lobby !== (k === "search" ? "searching" : k); });
@@ -1558,8 +1531,8 @@ function render() {
   $("versus").hidden = !(isLive || isBlitz);
   if (isLive) {
     const s = live.s;
-    $("vs-me").textContent = s.me.name; $("vs-me-rt").textContent = (s.found || 0) + " of " + (s.target || 1) + " found · " + s.me.rating;
-    $("vs-opp").textContent = s.opp.name; $("vs-bot").hidden = !s.opp.bot; $("vs-opp-rt").textContent = (s.opp.found || 0) + " of " + (s.target || 1) + " found · " + (s.rated ? "Rival " : s.opp.bot ? "Practice " : "Friend ") + s.opp.rating;
+    $("vs-me").textContent = s.me.name; $("vs-me-rt").textContent = (s.found || 0) + " of " + (s.target || 1) + " found · " + tierOf(s.me.rating);
+    $("vs-opp").textContent = s.opp.name; $("vs-bot").hidden = !s.opp.bot; $("vs-opp-rt").textContent = (s.opp.found || 0) + " of " + (s.target || 1) + " found · " + tierOf(s.opp.rating);
     $("resign").hidden = s.status !== "active";
     const pips = $("pips"); pips.textContent = ""; pips.hidden = false;
     for (let i = 0; i < MAX_GUESSES; i++) { const p = document.createElement("i"), og = s.opp.guesses[i]; if (og) { p.style.background = og.ok ? "#3fae6b" : heatFor(og.d); p.style.borderColor = "transparent"; p.title = og.ok ? "Found Pi" : miles(og.d) + " off"; } pips.append(p); }
@@ -1641,8 +1614,8 @@ function render() {
         : r.outcome === "target" ? (r.winner === "me" ? "You found Pi " + n + " times first." : opp + " found Pi " + n + " times first.")
         : "Time ran out. " + (r.winner === "draw" ? "It's a tie." : tied ? (r.winner === "me" ? "Tied on finds, but you got there first." : "Tied on finds, but " + opp + " got there first.") : r.winner === "me" ? "You found more." : opp + " found more.");
       gains.hidden = false;
-      gains.textContent = live.s.rated ? "Rating " + (r.delta >= 0 ? "+" : "") + r.delta + " (" + live.s.me.rating + ") · Treats +" + r.coins + (r.coins === 0 && r.winner === "me" ? " (daily treat limit reached)" : "")
-        : live.s.opp.bot ? "Practice match. You've played today's 15 ranked games against bots." : "Friendly match. No rating or treats.";
+      gains.textContent = live.s.rated ? "Rank points " + (r.delta >= 0 ? "+" : "") + r.delta + " (" + live.s.me.rating + ") · Treats +" + r.coins + (r.coins === 0 && r.winner === "me" ? " (daily treat limit reached)" : "")
+        : live.s.opp.bot ? "Practice match. You've played today's 15 ranked games against bots." : "Friendly match. No rank points or treats.";
       again.textContent = live.s.rated || live.s.opp.bot ? "Play again" : "New challenge";
     } else if (isBlitz) {
       stamp.textContent = "Time"; stamp.className = "stamp draw";

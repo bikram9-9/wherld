@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ranks · Where's Pi</title>
+<meta name="description" content="Where's Pi ranks: the best Pi finders in the world and in your country.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Pacifico&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: dark;
+  --ink: #0e1a25; --panel: #152634; --line: #2a4155; --text: #e6ecf1; --muted: #8ea3b5;
+  --paper: #ebe2cc; --paper-ink: #1c2733; --paper-line: #cdbf9f; --doodle: #e3ad55; --doodle-deep: #a86a12;
+  --brand: "Pacifico", cursive; --ui: "Bricolage Grotesque", system-ui, sans-serif; --type: "Special Elite", "Courier New", monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ink); color: var(--text); font: 16px/1.45 var(--ui); }
+a { color: inherit; }
+main { max-width: 980px; margin: 0 auto; padding: 14px 16px 60px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--brand); font-size: clamp(24px, 4vw, 34px); color: var(--doodle); }
+.brand i { width: 1.3em; height: 1.3em; display: block; }
+.brand svg, .pi svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.back { border: 1px solid var(--doodle); color: var(--doodle); border-radius: 999px; padding: 6px 14px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.back:hover { background: rgba(227, 173, 85, 0.12); }
+
+.paper { position: relative; background: var(--paper); color: var(--paper-ink); border-radius: 3px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); padding: 20px 22px; }
+.paper::before, .paper::after { content: ""; position: absolute; top: -10px; width: 74px; height: 22px; background: rgba(240, 214, 140, 0.72); box-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+.paper::before { left: -14px; transform: rotate(-30deg); } .paper::after { right: -14px; transform: rotate(28deg); }
+.kicker { margin: 0 0 14px; text-align: center; font-family: var(--type); font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; border-top: 2px solid var(--paper-ink); border-bottom: 2px solid var(--paper-ink); padding: 4px 0; }
+
+/* Your badge */
+.badge-card { transform: rotate(-0.6deg); margin-bottom: 26px; }
+.me { display: grid; grid-template-columns: 150px 1fr; gap: 22px; align-items: center; }
+.photo { width: 150px; height: 150px; padding: 9px; background: #cfe3ee; border: 2px solid var(--paper-ink); transform: rotate(-3deg); box-shadow: 3px 4px 0 rgba(28,39,51,0.25); }
+.me h1 { margin: 0; font-size: clamp(26px, 4vw, 36px); font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
+.places { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 10px 0 12px; }
+.place b { display: block; font-size: clamp(30px, 5vw, 42px); font-weight: 800; line-height: 1; }
+.place span { font-size: 14px; color: #47525e; }
+.place .flag { font-size: 1.1em; }
+.change { border: 0; background: none; padding: 0; color: var(--doodle-deep); text-decoration: underline; font: inherit; font-size: 13px; cursor: pointer; }
+.meter { height: 12px; border-radius: 6px; background: #d8ccad; overflow: hidden; border: 1.5px solid var(--paper-ink); }
+.meter span { display: block; height: 100%; background: var(--doodle); border-radius: 4px; transition: width 0.8s ease; }
+.next { font-size: 14px; margin: 6px 0 0; color: #47525e; }
+.record { font-family: var(--type); font-size: 14px; margin: 8px 0 0; }
+.cta { display: inline-block; margin-top: 10px; background: var(--doodle); color: var(--paper-ink); border: 2px solid var(--paper-ink); box-shadow: 0 4px 0 var(--paper-ink); border-radius: 6px; padding: 9px 16px; font-weight: 800; text-decoration: none; }
+
+/* Tier tag: a little dog tag */
+.tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px 3px 8px; border-radius: 999px 6px 6px 999px; font-weight: 800; font-size: 14px; color: #fff; border: 2px solid rgba(0,0,0,0.25); white-space: nowrap; }
+.tag::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.85); box-shadow: inset 0 0 0 2px rgba(0,0,0,0.25); }
+.tag.small { font-size: 12px; padding: 1px 9px 1px 6px; }
+.t-pup { background: #8f7a55; } .t-sniffer { background: #4f8a3d; } .t-tracker { background: #2f74b5; }
+.t-detective { background: #6b4fb8; } .t-super-sleuth { background: #c2551f; } .t-top-dog { background: #b8860b; }
+
+/* Tier ladder */
+.ladder { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 0 0 26px; }
+.rung { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 8px; text-align: center; }
+.rung.on { border-color: var(--doodle); box-shadow: 0 0 0 2px rgba(227,173,85,0.35); }
+.rung .paws { font-size: 13px; letter-spacing: 1px; color: var(--doodle); min-height: 1.2em; }
+.rung b { display: block; font-size: 14px; margin: 4px 0 2px; }
+.rung small { color: var(--muted); font-size: 12px; }
+
+/* Leaderboard */
+.boards { transform: rotate(0.4deg); }
+.tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; }
+.tabs button { border: 1.5px solid var(--paper-ink); background: transparent; color: var(--paper-ink); border-radius: 6px; padding: 7px 14px; font: inherit; font-weight: 700; cursor: pointer; }
+.tabs button[aria-pressed="true"] { background: var(--paper-ink); color: var(--paper); }
+.tabs select { font: inherit; font-size: 14px; padding: 7px 10px; border: 1.5px solid var(--paper-ink); border-radius: 6px; background: #f6f0e0; color: var(--paper-ink); max-width: 220px; }
+.podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; align-items: end; gap: 10px; margin: 6px 0 18px; }
+.step { text-align: center; }
+.step .pi { width: 74px; height: 74px; margin: 0 auto -6px; position: relative; z-index: 1; }
+.step.first .pi { width: 96px; height: 96px; }
+.block { border: 2px solid var(--paper-ink); border-radius: 8px 8px 0 0; padding: 10px 6px 8px; background: #f6f0e0; }
+.step.first .block { min-height: 118px; background: #f4dfa6; } .step.second .block { min-height: 96px; background: #e4e4e4; } .step.third .block { min-height: 82px; background: #ecc9a2; }
+.medal { font-family: var(--type); font-size: 13px; display: block; }
+.step b { display: block; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.step .pts { font-size: 13px; color: #47525e; }
+.step.empty .block { opacity: 0.45; border-style: dashed; }
+ol.list { list-style: none; margin: 0; padding: 0; }
+.list li { display: grid; grid-template-columns: 40px 30px minmax(0, 1fr) auto 70px; gap: 10px; align-items: center; padding: 8px 6px; border-bottom: 1px dashed var(--paper-line); }
+.list li.me-row { background: rgba(227,173,85,0.28); border-radius: 6px; }
+.list .pos { font-family: var(--type); font-size: 15px; text-align: right; }
+.list .flag { font-size: 18px; text-align: center; }
+.list .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list .nm small { display: block; font-weight: 400; font-size: 12px; color: #6b6452; }
+.list .pts { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+.list .pts small { display: block; font-weight: 400; font-size: 11px; color: #6b6452; }
+.empty-note { text-align: center; color: #6b6452; padding: 18px 0 6px; }
+.dialog { position: fixed; inset: 0; background: rgba(5,10,15,0.7); display: grid; place-items: center; z-index: 9; padding: 16px; }
+.dialog .paper { width: min(380px, 100%); }
+.dialog label { display: block; font-weight: 700; margin-bottom: 8px; }
+.dialog select { width: 100%; font: inherit; padding: 9px; border: 1.5px solid var(--paper-ink); border-radius: 6px; background: #f6f0e0; }
+.row { display: flex; gap: 8px; margin-top: 14px; }
+.row button { flex: 1; border: 1.5px solid var(--paper-ink); background: transparent; border-radius: 6px; padding: 9px; font: inherit; font-weight: 700; cursor: pointer; color: var(--paper-ink); }
+.row button.primary { background: var(--paper-ink); color: var(--paper); }
+.note { color: #b3202c; font-size: 13px; margin: 8px 0 0; }
+.loading { text-align: center; color: var(--muted); padding: 40px 0; }
+@media (max-width: 680px) {
+  .me { grid-template-columns: 96px 1fr; gap: 14px; }
+  .photo { width: 96px; height: 96px; padding: 6px; }
+  .ladder { grid-template-columns: repeat(3, 1fr); }
+  .list li { grid-template-columns: 30px 24px minmax(0, 1fr) 64px; }
+  .list .tier-col { display: none; }
+  .step .pi { width: 56px; height: 56px; } .step.first .pi { width: 72px; height: 72px; }
+  .paper::before, .paper::after { width: 56px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <a class="brand" href="/"><i data-pi></i>Where's Pi</a>
+    <a class="back" href="/">Back to the game</a>
+  </header>
+  <div id="app"><p class="loading">Sniffing out the rankings…</p></div>
+</main>
+<div class="dialog" id="pick" hidden>
+  <form class="paper" id="pick-form">
+    <p class="kicker">Your country</p>
+    <label for="pick-sel">Which country do you play for?</label>
+    <select id="pick-sel"></select>
+    <p class="note" id="pick-err" hidden></p>
+    <div class="row"><button type="button" id="pick-cancel">Cancel</button><button type="submit" class="primary">Save</button></div>
+  </form>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="metrics.js"></script>
+<script src="pi.js"></script>
+<script>
+"use strict";
+const SB_URL = "https://wyvstvxrjdcmvmmdvunp.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5dnN0dnhyamRjbXZtbWR2dW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4ODEyMjEsImV4cCI6MjExMDQ1NzIyMX0.fIVQecib_eAua7j3bVBY5SNoBUkyuGhCyuyy0Y4YNRs";
+const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true } }) : null;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const token = () => { try { return JSON.parse(localStorage.getItem("wh-token")); } catch (e) { return null; } };
+async function rpc(fn, args) {
+  let auth = SB_KEY;
+  if (sb) { try { const { data } = await sb.auth.getSession(); if (data.session) auth = data.session.access_token; } catch (e) { /* signed out */ } }
+  const r = await fetch(SB_URL + "/rest/v1/rpc/" + fn, { method: "POST", headers: { apikey: SB_KEY, Authorization: "Bearer " + auth, "Content-Type": "application/json" }, body: JSON.stringify(args || {}) });
+  const j = await r.json().catch(() => null);
+  if (!r.ok) throw new Error((j && j.message) || "Couldn't load ranks. Try again.");
+  return j;
+}
+
+/* Tiers, matching the server (wh_private.tier). */
+const TIERS = [["Pup", 0], ["Sniffer", 900], ["Tracker", 1050], ["Detective", 1200], ["Super Sleuth", 1350], ["Top Dog", 1500]];
+const tierClass = (t) => "t-" + String(t).toLowerCase().replace(/\s+/g, "-");
+const tag = (t, small) => '<span class="tag ' + tierClass(t) + (small ? " small" : "") + '">' + esc(t) + "</span>";
+
+/* Countries: flag emoji and English names from the browser. */
+const CODES = "AD AE AF AG AI AL AM AO AR AS AT AU AW AZ BA BB BD BE BF BG BH BI BJ BM BN BO BR BS BT BW BY BZ CA CD CF CG CH CI CK CL CM CN CO CR CU CV CY CZ DE DJ DK DM DO DZ EC EE EG ER ES ET FI FJ FM FO FR GA GB GD GE GH GI GL GM GN GQ GR GT GU GW GY HK HN HR HT HU ID IE IL IN IQ IR IS IT JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MG MH MK ML MM MN MO MR MT MU MV MW MX MY MZ NA NC NE NG NI NL NO NP NR NZ OM PA PE PF PG PH PK PL PR PS PT PW PY QA RO RS RU RW SA SB SC SD SE SG SI SK SL SM SN SO SR SS ST SV SY SZ TD TG TH TJ TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VN VU WS XK YE ZA ZM ZW".split(" ");
+let regionNames = null; try { regionNames = new Intl.DisplayNames(["en"], { type: "region" }); } catch (e) { /* old browser */ }
+const cname = (c) => { if (!c) return ""; if (c === "XK") return "Kosovo"; try { return (regionNames && regionNames.of(c)) || c; } catch (e) { return c; } };
+const flag = (c) => c && /^[A-Z]{2}$/.test(c) ? String.fromCodePoint(...[...c].map((ch) => 127397 + ch.charCodeAt(0))) : "🌐";
+
+let data = null, tab = "world", browse = null;
+
+function paintPiLogos() { document.querySelectorAll("[data-pi]").forEach((el) => { el.innerHTML = piSVG({ outfit: el.dataset.outfit || "" }); }); }
+
+function badge(me) {
+  if (!me) return '<section class="paper badge-card"><p class="kicker">Have you got what it takes?</p><div class="me"><div class="photo pi" data-pi></div><div>' +
+    "<h1>Join the hunt</h1><p>Play a ranked race to get your detective badge, a world rank and a rank in your country.</p>" +
+    '<a class="cta" href="/">Play a race</a></div></div></section>';
+  const pts = me.points, i = TIERS.findIndex((t, k) => pts >= t[1] && (k === TIERS.length - 1 || pts < TIERS[k + 1][1]));
+  const next = TIERS[i + 1], lo = TIERS[i][1], hi = next ? next[1] : null;
+  const pct = next ? Math.max(4, Math.min(100, Math.round(100 * (pts - Math.max(lo, 800)) / (hi - Math.max(lo, 800))))) : 100;
+  const places = me.ranked
+    ? '<div class="place"><b>#' + me.global + '</b><span>in the world, of ' + data.globalTotal + "</span></div>" +
+      (me.country ? '<div class="place"><b>#' + me.countryRank + '</b><span><span class="flag">' + flag(me.country) + "</span> in " + esc(cname(me.country)) + ' · <button class="change" data-change>change</button></span></div>'
+                  : '<div class="place"><b>?</b><span>No country yet · <button class="change" data-change>pick yours</button></span></div>')
+    : '<div class="place"><b>Unranked</b><span>Win or lose one ranked race to get on the board.</span></div>';
+  return '<section class="paper badge-card"><p class="kicker">Detective badge</p><div class="me"><div class="photo pi" data-pi data-outfit="' + esc(me.outfit || "") + '"></div><div>' +
+    "<h1>" + esc(me.name) + "</h1>" + '<div style="margin-top:6px">' + tag(me.tier) + ' <span style="font-weight:700;margin-left:6px">' + pts + " rank points</span></div>" +
+    '<div class="places">' + places + "</div>" +
+    '<div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '"><span style="width:' + pct + '%"></span></div>' +
+    '<p class="next">' + (next ? (hi - pts) + " points to " + esc(next[0]) + ". Win ranked races to climb." : "Top Dog. The best nose in the game.") + "</p>" +
+    '<p class="record">Record: ' + me.wins + " W · " + me.losses + " L · " + me.draws + " D</p>" +
+    (me.ranked ? "" : '<a class="cta" href="/">Play a ranked race</a>') + "</div></div></section>";
+}
+
+function ladder(me) {
+  return '<div class="ladder">' + TIERS.map(([t, min], k) => '<div class="rung' + (me && me.tier === t ? " on" : "") + '"><div class="paws">' + "🐾".repeat(k + 1).slice(0, 2 * Math.min(k + 1, 3)) + (k >= 3 ? "+" : "") + "</div>" + tag(t, true) + "<b>" + (k === 0 ? "Start" : min + "+") + "</b><small>" + (k === 0 ? "Under 900" : "rank points") + "</small></div>").join("") + "</div>";
+}
+
+function board() {
+  const list = tab === "world" ? data.world : data.local, c = data.country;
+  const known = new Set((data.countries || []).map((x) => x.code));
+  const opts = CODES.map((code) => ({ code, name: cname(code) })).sort((a, b) => (known.has(b.code) - known.has(a.code)) || a.name.localeCompare(b.name));
+  const sel = '<select id="country-sel" aria-label="Country leaderboard"><option value="">Pick a country</option>' +
+    opts.map((o) => '<option value="' + o.code + '"' + (o.code === c ? " selected" : "") + ">" + flag(o.code) + " " + esc(o.name) + (known.has(o.code) ? "" : " · no players yet") + "</option>").join("") + "</select>";
+  let html = '<section class="paper boards"><p class="kicker">Most wanted: best Pi finders</p><div class="tabs">' +
+    '<button type="button" data-tab="world" aria-pressed="' + (tab === "world") + '">🌍 World</button>' +
+    '<button type="button" data-tab="local" aria-pressed="' + (tab === "local") + '">' + (c ? flag(c) + " " + esc(cname(c)) : "My country") + "</button>" +
+    (tab === "local" ? sel : "") + "</div>";
+  if (tab === "local" && !c) return html + '<p class="empty-note">Pick a country to see its best players.</p></section>';
+  if (!list.length) return html + '<p class="empty-note">No ranked players here yet. Be the first!</p></section>';
+  const medal = ["Gold", "Silver", "Bronze"], cls = ["first", "second", "third"], order = [1, 0, 2];
+  html += '<div class="podium">' + order.map((k) => {
+    const p = list[k];
+    if (!p) return '<div class="step ' + cls[k] + ' empty"><div class="block"><span class="medal">' + medal[k] + "</span><b>Open spot</b></div></div>";
+    return '<div class="step ' + cls[k] + '"><div class="pi" data-pi data-outfit="' + esc(p.outfit || (k === 0 ? "crown" : "")) + '"></div><div class="block"><span class="medal">' + medal[k] + " · #" + (k + 1) + "</span><b>" + flag(p.country) + " " + esc(p.name) + '</b><span class="pts">' + p.points + " pts</span></div></div>";
+  }).join("") + "</div>";
+  html += '<ol class="list">' + list.slice(3).map((p, k) => '<li class="' + (p.me ? "me-row" : "") + '"><span class="pos">' + (k + 4) + '</span><span class="flag" title="' + esc(cname(p.country)) + '">' + flag(p.country) + '</span><span class="nm">' + esc(p.name) + (p.me ? " (you)" : "") + "<small>" + p.wins + " W · " + p.losses + " L</small></span>" + '<span class="tier-col">' + tag(p.tier, true) + '</span><span class="pts">' + p.points + "<small>pts</small></span></li>").join("") + "</ol>";
+  return html + "</section>";
+}
+
+function render() {
+  $("app").innerHTML = badge(data.me) + ladder(data.me) + board();
+  paintPiLogos();
+  document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { tab = b.dataset.tab; if (tab === "local" && !data.country && data.me) openPick(); render(); }));
+  document.querySelectorAll("[data-change]").forEach((b) => b.addEventListener("click", openPick));
+  const cs = $("country-sel"); if (cs) cs.addEventListener("change", () => { browse = cs.value || null; load(); });
+}
+
+async function load() {
+  try { data = await rpc("wh_ranks", { p_token: token(), p_country: browse }); }
+  catch (e) { $("app").innerHTML = '<p class="loading">' + esc(e.message) + "</p>"; return; }
+  render();
+}
+
+function openPick() {
+  if (!data.me) { location.href = "/"; return; }
+  const s = $("pick-sel");
+  s.innerHTML = CODES.map((code) => ({ code, name: cname(code) })).sort((a, b) => a.name.localeCompare(b.name))
+    .map((o) => '<option value="' + o.code + '"' + (o.code === data.me.country ? " selected" : "") + ">" + flag(o.code) + " " + esc(o.name) + "</option>").join("");
+  $("pick-err").hidden = true; $("pick").hidden = false; s.focus();
+}
+$("pick-cancel").addEventListener("click", () => { $("pick").hidden = true; });
+$("pick-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try { await rpc("wh_set_country", { p_token: token(), p_country: $("pick-sel").value }); $("pick").hidden = true; browse = null; tab = "local"; load(); }
+  catch (ex) { $("pick-err").textContent = ex.message; $("pick-err").hidden = false; }
+});
+
+paintPiLogos();
+load();
+</script>
+</body>
+</html>

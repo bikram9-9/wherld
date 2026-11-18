@@ -419,6 +419,11 @@ body[data-live="1"] { --chrome: 268px; }
         <p>You have <b id="shop-coins">0</b> coins.</p>
         <ul class="shop" id="shop-list"></ul>
         <p class="note" id="shop-note" hidden></p>
+        <div id="coin-store" hidden style="display:contents">
+          <p class="group-label">Get more coins</p>
+          <div class="modes" id="coin-packs"></div>
+          <p class="note" id="coin-note" hidden></p>
+        </div>
         <button type="button" class="btn" data-back>Back</button>
       </div>
       <div id="lb-blitz" hidden style="display:contents">
@@ -428,9 +433,16 @@ body[data-live="1"] { --chrome: 268px; }
         <div class="modes"><button type="button" class="btn" data-min="1">1 min</button><button type="button" class="btn" data-min="3">3 min</button><button type="button" class="btn" data-min="5">5 min</button></div>
         <button type="button" class="btn" data-back>Back</button>
       </div>
+      <div id="lb-race" hidden style="display:contents">
+        <p class="flyer-kicker" id="race-kicker">Play online</p>
+        <h2>Race to find Pi</h2>
+        <p>Same countries for both of you. First to find Pi this many times wins.</p>
+        <div class="modes"><button type="button" class="btn" data-race="5">First to 5<small>5 min clock</small></button><button type="button" class="btn" data-race="15">First to 15<small>12 min clock</small></button><button type="button" class="btn" data-race="20">First to 20<small>15 min clock</small></button></div>
+        <button type="button" class="btn" data-back>Back</button>
+      </div>
       <div id="lb-challenge" hidden style="display:contents">
         <p class="flyer-kicker">Challenge a friend</p>
-        <p>Send this link. The match starts when your friend opens it.</p>
+        <p id="ch-sub">Send this link. The match starts when your friend opens it.</p>
         <label for="ch-link">Your link<input id="ch-link" type="text" readonly></label>
         <button type="button" class="btn primary" id="ch-copy">Copy link</button>
         <p style="text-align:center">Waiting. Keep this page open.</p>
@@ -769,6 +781,7 @@ let view = "home";            // "home" | "play"
 let solo = null;              // {mode: "daily"|"practice", day, answer, guesses: [keys], fresh}
 let live = null;              // {id, s: server state, skew, fresh}
 let profile = null, online = true, lobby = "menu", afterName = null;
+let raceFor = "online", raceTarget = [5, 15, 20].includes(store.get("race-target")) ? store.get("race-target") : 5;
 let M = { kind: "none", labels: CLUE_LABELS, guesses: [], clues: [], done: false, won: false, answer: null, fresh: -1, started: false, hint: null };
 
 /* ---------- Globe ---------- */
@@ -1041,7 +1054,7 @@ async function useHint() {
   if (!profile) { $("msg").textContent = "Pick a nickname on the home page first. You start with 100 coins."; return; }
   $("hint").disabled = true;
   try { profile = await rpc("wh_hint", { p_token: token() }); }
-  catch (e) { $("msg").textContent = e.message; render(); return; }
+  catch (e) { $("msg").textContent = e.message + (/coins/.test(e.message) ? " Get more in the Shop." : ""); render(); return; }
   track("hint", { mode: solo.mode });
   solo.hint = offsetPoint(byKey.get(solo.answer).center, 150 + Math.random() * 550, Math.random() * 360);
   if (solo.mode === "daily") saveDaily();
@@ -1301,6 +1314,40 @@ function paintShop() {
     li.append(pv, tx, bt); ul.append(li);
   });
 }
+let coinStore = null, coinStoreLoading = false;
+async function loadCoinStore() {
+  if (coinStore || coinStoreLoading) return;
+  coinStoreLoading = true;
+  try { coinStore = await fetch(SB_URL + "/functions/v1/create-checkout", { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } }).then((r) => r.json()); }
+  catch (e) { coinStore = { ready: false, packs: [] }; }
+  coinStoreLoading = false; render();
+}
+async function buyCoins(pack, b) {
+  const note = $("coin-note"); note.hidden = true;
+  if (!session) { note.textContent = "Sign in to an account to buy coins, so they're never lost with your browser."; note.hidden = false; return; }
+  b.disabled = true;
+  try {
+    const auth = await bearer();
+    const r = await fetch(SB_URL + "/functions/v1/create-checkout", { method: "POST", headers: { apikey: SB_KEY, Authorization: "Bearer " + auth, "Content-Type": "application/json" }, body: JSON.stringify({ pack }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.url) throw new Error(j.error || "Couldn't start checkout. Try again.");
+    location.href = j.url;
+  } catch (e) { note.textContent = e.message; note.hidden = false; b.disabled = false; }
+}
+function paintCoinStore() {
+  if (!coinStore) { loadCoinStore(); return; }
+  const packs = coinStore.packs || [], box = $("coin-packs");
+  $("coin-store").hidden = !packs.length;
+  if (box.childElementCount === packs.length && box.dataset.ready === String(coinStore.ready)) return;
+  box.textContent = ""; box.dataset.ready = String(coinStore.ready);
+  packs.forEach((p) => {
+    const b = document.createElement("button"), sm = document.createElement("small"); b.type = "button"; b.className = "btn";
+    b.append(p.coins.toLocaleString("en-US") + " coins"); sm.textContent = "$" + p.price.toFixed(2); b.append(sm);
+    b.disabled = !coinStore.ready; b.addEventListener("click", () => buyCoins(p.id, b));
+    box.append(b);
+  });
+  if (!coinStore.ready) { $("coin-note").textContent = "Coin packs open soon."; $("coin-note").hidden = false; }
+}
 let paintedOutfit = null;
 function paintPi() {
   const o = (profile && profile.outfit) || "";
@@ -1323,7 +1370,7 @@ function watch(id) {
 async function startSearch() {
   view = "home"; lobby = "searching"; joining = false; lobbyNote = ""; searchStart = Date.now(); solo = null; live = null; render();
   track("match_search");
-  try { watch((await rpc("wh_find_match", { p_token: token() })).match); }
+  try { watch((await rpc("wh_find_match", { p_token: token(), p_target: raceTarget })).match); }
   catch (e) {
     lobby = "menu"; if (e.network) online = false; else lobbyNote = e.message;
     if (/Unknown player/.test(e.message)) { profile = null; lobbyNote = ""; needProfile(startSearch); return; }
@@ -1334,7 +1381,7 @@ async function startChallenge() {
   view = "home"; lobby = "challenge"; challengeLink = ""; lobbyNote = ""; solo = null; live = null; render();
   track("challenge_create");
   try {
-    const r = await rpc("wh_challenge_create", { p_token: token() });
+    const r = await rpc("wh_challenge_create", { p_token: token(), p_target: raceTarget });
     challengeLink = location.origin + location.pathname + "#c-" + r.code;
     watch(r.match);
   } catch (e) { lobby = "menu"; if (e.network) online = false; else lobbyNote = e.message; }
@@ -1381,24 +1428,34 @@ function applyLive(s, mine) {
   if (s.status === "waiting") { render(); return; }
   if (view !== "play") {
     live.fresh = -1; enterPlay(); gameT0 = Date.now();
-    track("game_start", { mode: s.rated ? "ranked" : s.opp.bot ? "bot" : "friend" });
+    track("game_start", { mode: s.rated ? "ranked" : s.opp.bot ? "bot" : "friend", target: s.target });
     toast((s.rated ? "Rival found: " : s.opp.bot ? "Practice rival: " : "Your friend is here: ") + s.opp.name, "");
   }
   const after = model();
-  const grew = after.guesses.length > (was ? was.guesses.length : 0);
-  live.fresh = after.clues.length > (was && was.clues ? was.clues.length : 0) && grew ? after.clues.length - 1 : -1;
+  const newRound = !!was && (s.round || 0) > (was.round || 0);
+  const grew = !newRound && after.guesses.length > (was ? was.guesses.length : 0);
+  live.fresh = !newRound && after.clues.length > (was && was.clues ? was.clues.length : 0) && grew ? after.clues.length - 1 : -1;
   if (s.status === "done") {
     if (!was || was.status !== "done") {
       stopPolling(); live.fresh = -1;
       const w = s.result.winner;
-      track("game_end", { mode: s.rated ? "ranked" : s.opp && s.opp.bot ? "bot" : "friend", won: w === "me", result: w, guesses: after.guesses.length, ms: Date.now() - gameT0 });
+      track("game_end", { mode: s.rated ? "ranked" : s.opp && s.opp.bot ? "bot" : "friend", won: w === "me", result: w, target: s.target, found: s.result.found, opp_found: s.result.oppFound, ms: Date.now() - gameT0 });
       toast(w === "me" ? "Victory" : w === "opp" ? "Defeat" : "Draw", w === "me" ? "good" : w === "opp" ? "colder" : "");
-      buddy(w === "me" ? "bark" : "whimper", w === "me" ? "You found me first!" : "I was in " + s.result.answerName + "!");
+      buddy(w === "me" ? "bark" : "whimper", w === "me" ? "You won the race!" : w === "opp" ? "Next race is yours!" : "A tie!");
       $("msg").textContent = "";
       const a = byKey.get(s.result.answer); if (a) flyTo(a.center);
     }
+  } else if (newRound && s.last) {
+    const L = s.last, cty = byKey.get(L.answer);
+    toast(L.ok ? "Found Pi! " + s.found + " of " + s.target : "Pi was in " + L.answerName, L.ok ? "good" : "colder");
+    buddy(L.ok ? "bark" : "whimper", L.ok ? "Found me! Next country." : "I was in " + L.answerName + "!");
+    $("msg").textContent = (L.ok ? "Found Pi in " : "Out of guesses. Pi was in ") + L.answerName + ". On to the next country.";
+    pulseKey = null; lastFeedback = Date.now();
+    if (cty) flyTo(cty.center);
   } else if (mine && grew) {
     feedback(before, after); lastFeedback = Date.now();
+  } else if (was && s.opp && was.opp && (s.opp.found || 0) > (was.opp.found || 0) && Date.now() - lastFeedback > 3000) {
+    $("msg").textContent = s.opp.name + " found Pi. They have " + s.opp.found + " of " + s.target + ".";
   } else if (was && s.opp && was.opp && s.opp.guesses.length > was.opp.guesses.length && Date.now() - lastFeedback > 5000) {
     const og = s.opp.guesses[s.opp.guesses.length - 1];
     $("msg").textContent = s.opp.name + " is sniffing " + miles(og.d) + " from Pi.";
@@ -1428,14 +1485,14 @@ function tickClock() {
 /* ---------- Sharing ---------- */
 const squares = () => M.guesses.map((g) => g.ok ? "🟩" : g.d < 4000 ? "🟥" : "🟦").join("");
 function shareLine() {
-  if (M.kind === "live") { const r = live.s.result; return (r.winner === "me" ? "I found Pi before " : r.winner === "opp" ? "Pi escaped me against " : "Tied with ") + live.s.opp.name; }
+  if (M.kind === "live") { const r = live.s.result; return (r.winner === "me" ? "Won" : r.winner === "opp" ? "Lost" : "Tied") + " a race to " + live.s.target + " vs " + live.s.opp.name + " · " + r.found + "–" + r.oppFound; }
   if (M.kind === "blitz") return "Blitz " + solo.minutes + " min · found Pi " + solo.score + (solo.score === 1 ? " time" : " times");
   const where = byKey.get(solo.answer).name;
   return M.won ? "Found Pi in " + where + " · " + M.guesses.length + "/" + MAX_GUESSES : "Pi hid in " + where;
 }
 function shareText() {
   const head = M.kind === "daily" ? "Where's Pi #" + (solo.day + 1) : M.kind === "live" ? "Where's Pi 1v1" : M.kind === "city" ? "Where's Pi · City hunt" : M.kind === "blitz" ? "Where's Pi" : "Where's Pi (practice)";
-  return head + "\n" + shareLine() + (M.kind === "blitz" ? "" : "\n" + squares()) + "\nwherespi.com";
+  return head + "\n" + shareLine() + (M.kind === "blitz" || M.kind === "live" ? "" : "\n" + squares()) + "\nwherespi.com";
 }
 async function shareImage() {
   try {
@@ -1470,7 +1527,7 @@ function render() {
   if (profile) { $("chip-rating").textContent = profile.rating; $("chip-coins").textContent = profile.coins; }
 
   // lobby
-  ["menu", "name", "search", "shop", "blitz", "challenge", "boards", "account", "newpass", "mfa", "mfasetup"].forEach((k) => { $("lb-" + k).hidden = lobby !== (k === "search" ? "searching" : k); });
+  ["menu", "name", "search", "shop", "blitz", "race", "challenge", "boards", "account", "newpass", "mfa", "mfasetup"].forEach((k) => { $("lb-" + k).hidden = lobby !== (k === "search" ? "searching" : k); });
   $("who").hidden = !profile;
   if (profile) { $("who-name").textContent = profile.name; $("who-stats").textContent = "Your ranked record: " + profile.wins + " W · " + profile.losses + " L · " + profile.draws + " D"; } else $("who-stats").textContent = "";
   $("play-online").disabled = !online; $("play-friend").disabled = !online; $("open-shop").disabled = !online; $("offline").hidden = online;
@@ -1484,7 +1541,9 @@ function render() {
   $("search-hint").hidden = joining;
   $("ch-link").value = challengeLink || "Making your link...";
   $("ch-copy").disabled = !challengeLink;
-  if (lobby === "shop") paintShop();
+  $("race-kicker").textContent = raceFor === "friend" ? "Challenge a friend" : "Play online";
+  $("ch-sub").textContent = "First to " + raceTarget + " countries. Send this link; the race starts when your friend opens it.";
+  if (lobby === "shop") { paintShop(); paintCoinStore(); }
   paintBoard();
 
   if (view !== "play") { dirty = true; return; }
@@ -1493,8 +1552,8 @@ function render() {
   $("versus").hidden = !(isLive || isBlitz);
   if (isLive) {
     const s = live.s;
-    $("vs-me").textContent = s.me.name; $("vs-me-rt").textContent = "You · " + s.me.rating;
-    $("vs-opp").textContent = s.opp.name; $("vs-bot").hidden = !s.opp.bot; $("vs-opp-rt").textContent = (s.rated ? "Rival · " : s.opp.bot ? "Practice · " : "Friend · ") + s.opp.rating;
+    $("vs-me").textContent = s.me.name; $("vs-me-rt").textContent = (s.found || 0) + " of " + (s.target || 1) + " found · " + s.me.rating;
+    $("vs-opp").textContent = s.opp.name; $("vs-bot").hidden = !s.opp.bot; $("vs-opp-rt").textContent = (s.opp.found || 0) + " of " + (s.target || 1) + " found · " + (s.rated ? "Rival " : s.opp.bot ? "Practice " : "Friend ") + s.opp.rating;
     $("resign").hidden = s.status !== "active";
     const pips = $("pips"); pips.textContent = ""; pips.hidden = false;
     for (let i = 0; i < MAX_GUESSES; i++) { const p = document.createElement("i"), og = s.opp.guesses[i]; if (og) { p.style.background = og.ok ? "#3fae6b" : heatFor(og.d); p.style.borderColor = "transparent"; p.title = og.ok ? "Found Pi" : miles(og.d) + " off"; } pips.append(p); }
@@ -1506,7 +1565,7 @@ function render() {
   }
 
   // case file
-  $("caseno").textContent = isLive ? (live.s.rated ? "Ranked 1 v 1" : "Friendly 1 v 1") : M.kind === "daily" ? "Daily No. " + (solo.day + 1) : M.kind === "city" ? "City hunt" : isBlitz ? "Blitz" : "Practice round";
+  $("caseno").textContent = isLive ? (live.s.status === "done" ? "Race to " + live.s.target : "Country " + ((live.s.round || 0) + 1) + " · race to " + live.s.target) : M.kind === "daily" ? "Daily No. " + (solo.day + 1) : M.kind === "city" ? "City hunt" : isBlitz ? "Blitz" : "Practice round";
   const ol = $("clues"); ol.textContent = "";
   M.labels.forEach((label, i) => {
     const li = document.createElement("li");
@@ -1558,7 +1617,7 @@ function render() {
   $("guess").placeholder = M.done ? "Round over" : out ? "Out of guesses. Waiting on the clock." : isLive && !M.started ? "Get ready" : M.kind === "city" ? "Where's Pi? Type a city" : "Where's Pi? Type a country";
   const canHint = !isLive && !isBlitz && M.kind !== "none";
   $("hint").hidden = !canHint; $("hint").disabled = M.done || !!M.hint || !online;
-  $("hint").textContent = M.hint ? "Trail used" : "Trail hint · 20";
+  $("hint").textContent = M.hint ? "Trail used" : profile && profile.hintsFree > 0 ? "Trail hint · " + profile.hintsFree + " free" : "Trail hint · " + ((profile && profile.hintPrice) || 20) + " coins";
 
   // verdict
   $("verdict").hidden = !M.done;
@@ -1567,14 +1626,14 @@ function render() {
     gains.hidden = true; again.hidden = false;
     if (isLive) {
       const r = live.s.result, opp = live.s.opp.name;
-      $("ans").textContent = "Pi was in " + (byKey.get(M.answer) ? byKey.get(M.answer).name : r.answerName);
+      $("ans").textContent = "Final score " + r.found + "–" + r.oppFound;
       stamp.textContent = r.winner === "me" ? "Victory" : r.winner === "opp" ? "Defeat" : "Draw";
       stamp.className = "stamp " + (r.winner === "me" ? "win" : r.winner === "opp" ? "loss" : "draw");
-      const lead = r.outcome === "time" ? "Time ran out. " : "Both of you ran out of guesses. ";
+      const n = live.s.target, tied = r.found === r.oppFound;
       $("scoreline").textContent = r.outcome === "resign" ? (r.winner === "me" ? opp + " resigned." : "You resigned.")
         : r.outcome === "abandon" ? (r.winner === "me" ? opp + " left the match." : "You were away too long, so the match went to " + opp + ".")
-        : r.outcome === "solved" ? (r.winner === "me" ? "You found Pi first." : opp + " found Pi first.")
-        : lead + (r.winner === "me" ? "Your closest guess was nearer." : r.winner === "opp" ? opp + "'s closest guess was nearer." : "Nobody was closer.");
+        : r.outcome === "target" ? (r.winner === "me" ? "You found Pi " + n + " times first." : opp + " found Pi " + n + " times first.")
+        : "Time ran out. " + (r.winner === "draw" ? "It's a tie." : tied ? (r.winner === "me" ? "Tied on finds, but you got there first." : "Tied on finds, but " + opp + " got there first.") : r.winner === "me" ? "You found more." : opp + " found more.");
       gains.hidden = false;
       gains.textContent = live.s.rated ? "Rating " + (r.delta >= 0 ? "+" : "") + r.delta + " (" + live.s.me.rating + ") · Coins +" + r.coins + (r.coins === 0 && r.winner === "me" ? " (daily coin limit reached)" : "")
         : live.s.opp.bot ? "Practice match. You've played today's 15 ranked games against bots." : "Friendly match. No rating or coins.";
@@ -1659,8 +1718,12 @@ $("play-practice").addEventListener("click", () => startSolo("practice"));
 $("play-city").addEventListener("click", () => startSolo("city"));
 $("play-blitz").addEventListener("click", () => { lobby = "blitz"; render(); });
 document.querySelectorAll("[data-min]").forEach((b) => b.addEventListener("click", () => startSolo("blitz", +b.dataset.min)));
-$("play-online").addEventListener("click", () => needProfile(startSearch));
-$("play-friend").addEventListener("click", () => needProfile(startChallenge));
+$("play-online").addEventListener("click", () => needProfile(() => { raceFor = "online"; lobby = "race"; render(); }));
+$("play-friend").addEventListener("click", () => needProfile(() => { raceFor = "friend"; lobby = "race"; render(); }));
+document.querySelectorAll("[data-race]").forEach((b) => b.addEventListener("click", () => {
+  raceTarget = +b.dataset.race; store.set("race-target", raceTarget);
+  if (raceFor === "friend") startChallenge(); else startSearch();
+}));
 const leavePlay = () => { if (view === "play") goHome(); return view === "home"; };
 $("open-shop").addEventListener("click", () => { if (leavePlay()) needProfile(() => { lobby = "shop"; $("shop-note").hidden = true; render(); }); });
 $("open-boards").addEventListener("click", () => { lobby = "boards"; render(); loadBoard(); });
@@ -1702,7 +1765,7 @@ $("ch-copy").addEventListener("click", async () => {
 $("hint").addEventListener("click", useHint);
 $("share").addEventListener("click", shareImage);
 $("again").addEventListener("click", () => {
-  if (M.kind === "live") { const rated = live.s.rated; zoomTarget = 1; spinning = !reduceMotion; if (rated) startSearch(); else startChallenge(); }
+  if (M.kind === "live") { const rated = live.s.rated; raceTarget = live.s.target || raceTarget; zoomTarget = 1; spinning = !reduceMotion; if (rated) startSearch(); else startChallenge(); }
   else if (M.kind === "blitz") startSolo("blitz", solo.minutes);
   else startSolo(M.kind === "city" ? "city" : "practice");
 });
@@ -1752,6 +1815,14 @@ function start(snap) {
     if (window.piTrack) window.piTrack.mark("MAP");
     if (authReturnError) lobbyNote = "Sign-in didn't finish: " + decodeURIComponent(authReturnError.replace(/\+/g, " "));
     await syncAccount(); loadBoard();
+    const coinsBack = /[?&]coins=(success|cancel)/.exec(location.search);
+    if (coinsBack) {
+      try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) { /* keep url */ }
+      if (coinsBack[1] === "success") {
+        lobbyNote = "Payment received. Your coins will show up in a few seconds."; render();
+        [3000, 8000, 20000].forEach((ms) => setTimeout(() => { if (session) syncAccount(); else loadProfile(); }, ms));
+      } else { lobbyNote = "Checkout canceled. No charge was made."; render(); }
+    }
     if (recovering && session && lobby !== "mfa") { view = "home"; lobby = "newpass"; render(); }
     else if (justConfirmed && session && lobby === "menu") { lobbyNote = "Email confirmed. Welcome to Where's Pi!"; render(); }
     if (invite && lobby !== "mfa") needProfile(() => joinChallenge(invite[1]));

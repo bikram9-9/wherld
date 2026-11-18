@@ -281,20 +281,37 @@ body[data-view="play"] .lobby { display: none; }
 body[data-view="home"] { --chrome: 96px; }
 body[data-live="1"] { --chrome: 268px; }
 
+.dock, .sheet-x, .sheet-bd { display: none; }
 @media (max-width: 900px) {
   .brand p { display: none; }
+  .wrap { padding-bottom: 84px; }
+  .guess-form .hint { display: none; }
+  body[data-view="play"] .dock { display: flex; }
+  .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); background: rgba(14, 26, 37, 0.96); border-top: 1px solid var(--line); backdrop-filter: blur(6px); }
+  .dock button { flex: 1; min-height: 48px; border-radius: 12px; font-family: var(--font-display); font-weight: 700; font-size: 16px; }
+  .dock-clues { background: var(--paper); color: var(--paper-ink); border: 2px solid var(--paper-ink); box-shadow: 0 3px 0 #b9aa87; }
+  .dock-clues b { background: var(--paper-ink); color: var(--paper); border-radius: 999px; padding: 1px 8px; font-size: 13px; margin-left: 4px; }
+  .dock-clues.ping { animation: dock-ping 0.9s ease 2; }
+  @keyframes dock-ping { 0%, 100% { transform: none; } 30% { transform: translateY(-6px) scale(1.04); box-shadow: 0 0 0 4px rgba(227,173,85,0.6); } }
+  .dock-hint { background: transparent; color: var(--doodle); border: 2px solid var(--doodle); }
+  .dock-hint:disabled { opacity: 0.45; }
+  .casefile { position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 30; width: 100%; max-width: none; min-height: 0; max-height: 82dvh; overflow-y: auto; margin: 0; padding: 14px 18px calc(18px + env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; transform: translateY(105%); transition: transform 0.28s ease; box-shadow: 0 -18px 40px rgba(0,0,0,0.55); }
+  .casefile::before { display: none; }
+  body.sheet .casefile { transform: none; }
+  .sheet-x { display: block; margin: -4px auto 10px; border: 0; background: none; color: #6b6452; font-weight: 700; font-size: 14px; padding: 4px 10px; }
+  .sheet-x::before { content: ""; display: block; width: 44px; height: 5px; border-radius: 3px; background: #b9aa87; margin: 0 auto 6px; }
+  .sheet-bd { position: fixed; inset: 0; z-index: 25; background: rgba(5, 10, 15, 0.55); }
+  body.sheet .sheet-bd { display: block; }
+  @media (prefers-reduced-motion: reduce) { .casefile { transition: none; } .dock-clues.ping { animation: none; } }
   .versus { max-width: none; min-width: 0; }
   .guessbar { position: sticky; top: 0; z-index: 6; max-width: none; background: var(--ink); padding: 8px 0 4px; box-shadow: 0 12px 16px -8px var(--ink); }
-  .globe-box { height: min(calc(100vw - 32px), 62dvh); }
+  .globe-box { height: min(calc(100vw - 32px), calc(100dvh - 250px)); min-height: 240px; }
   body[data-view="home"] .globe-box { height: min(calc(100vw - 32px), 44dvh); }
   .lobby { position: relative; top: 0; right: 0; width: 100%; max-width: 440px; transform: none; margin-top: 50px; }
   .guesses { position: static; width: 100%; max-width: 440px; }
-  .casefile { position: relative; top: 0; transform: none; width: 100%; max-width: 440px; min-height: 0; margin-top: 14px; }
   .guesses ol { flex-direction: row; flex-wrap: wrap; }
   .buddy { width: 62px; }
   .bubble { left: 50px; bottom: 72px; font-size: 13px; }
-  .clues li.locked { display: none; }
-  .locknote:not([hidden]) { display: block; }
 }
 </style>
 </head>
@@ -344,6 +361,10 @@ body[data-live="1"] { --chrome: 268px; }
       </div>
     </div>
 
+    <div class="dock" id="dock">
+      <button type="button" class="dock-clues" id="dock-clues" aria-controls="casefile" aria-expanded="false"><span class="dock-ic" aria-hidden="true">🔎</span> Clues <b id="dock-n">1/6</b></button>
+      <button type="button" class="dock-hint" id="dock-hint" hidden>Trail hint</button>
+    </div>
     <section class="lobby" id="lobby" aria-label="Lobby">
      <div class="peek" aria-hidden="true"><span data-pi></span></div>
      <div class="lobby-in">
@@ -471,7 +492,9 @@ body[data-live="1"] { --chrome: 268px; }
      </div>
     </section>
 
-    <div class="casefile">
+    <div class="sheet-bd" id="sheet-bd" aria-hidden="true"></div>
+    <div class="casefile" id="casefile">
+      <button type="button" class="sheet-x" id="sheet-x" aria-label="Close clues">Close</button>
       <div class="cf-head"><h2>Case file</h2><span id="caseno"></span></div>
       <ol class="clues" id="clues"></ol>
       <p class="locknote" id="locknote"></p>
@@ -973,7 +996,7 @@ function startSolo(mode, opt) {
   enterPlay();
 }
 function enterPlay() {
-  view = "play"; pulseKey = null; spinning = false;
+  view = "play"; pulseKey = null; spinning = false; openSheet(false); wasDone = false;
   $("msg").textContent = ""; $("sharebox").hidden = true; $("guess").value = ""; $("buddy").className = "buddy";
   render();
   if (M.done && M.answer) flyTo(byKey.get(M.answer).center);
@@ -1494,6 +1517,13 @@ async function shareImage() {
   } catch (e) { if (e.name !== "AbortError") $("msg").textContent = "Couldn't make the image here. Try it on wherespi.com."; }
 }
 
+/* ---------- Phone bottom sheet (case file) ---------- */
+let lastPing = -1, wasDone = false;
+function openSheet(open) {
+  document.body.classList.toggle("sheet", open);
+  $("dock-clues").setAttribute("aria-expanded", String(open));
+}
+
 /* ---------- Rendering ---------- */
 function render() {
   M = model();
@@ -1525,7 +1555,7 @@ function render() {
   if (lobby === "shop") { paintShop(); paintCoinStore(); }
   paintBoard();
 
-  if (view !== "play") { dirty = true; return; }
+  if (view !== "play") { if (document.body.classList.contains("sheet")) openSheet(false); wasDone = false; lastPing = -1; dirty = true; return; }
 
   // top bar: rival and clock (live) or score and clock (blitz)
   $("versus").hidden = !(isLive || isBlitz);
@@ -1597,6 +1627,14 @@ function render() {
   const canHint = !isLive && !isBlitz && M.kind !== "none";
   $("hint").hidden = !canHint; $("hint").disabled = M.done || !!M.hint || !online;
   $("hint").textContent = M.hint ? "Trail used" : profile && profile.hintsFree > 0 ? "Trail hint · " + profile.hintsFree + " free" : "Trail hint · " + ((profile && profile.hintPrice) || 20) + " treats";
+  // phone dock: same hint button, plus the clue count that opens the case file
+  $("dock-hint").hidden = $("hint").hidden; $("dock-hint").disabled = $("hint").disabled;
+  $("dock-hint").textContent = M.hint ? "Trail used" : profile && profile.hintsFree > 0 ? "Hint · " + profile.hintsFree + " free" : "Hint · " + ((profile && profile.hintPrice) || 20) + " treats";
+  $("dock-n").textContent = M.done ? "Result" : (isLive && !M.started ? 0 : M.clues.length) + "/6";
+  if (M.fresh < 0) lastPing = -1;
+  if (M.fresh >= 0 && M.fresh !== lastPing) { lastPing = M.fresh; const d = $("dock-clues"); d.classList.remove("ping"); void d.offsetWidth; d.classList.add("ping"); }
+  if (M.done && !wasDone && window.matchMedia("(max-width: 900px)").matches) setTimeout(() => openSheet(true), 1400);
+  wasDone = M.done;
 
   // verdict
   $("verdict").hidden = !M.done;
@@ -1742,6 +1780,11 @@ $("ch-copy").addEventListener("click", async () => {
   catch (e) { box.focus(); box.select(); }
 });
 $("hint").addEventListener("click", useHint);
+$("dock-hint").addEventListener("click", useHint);
+$("dock-clues").addEventListener("click", () => openSheet(!document.body.classList.contains("sheet")));
+$("sheet-x").addEventListener("click", () => openSheet(false));
+$("sheet-bd").addEventListener("click", () => openSheet(false));
+addEventListener("keydown", (e) => { if (e.key === "Escape" && document.body.classList.contains("sheet")) openSheet(false); });
 $("share").addEventListener("click", shareImage);
 $("again").addEventListener("click", () => {
   if (M.kind === "live") { const rated = live.s.rated; raceTarget = live.s.target || raceTarget; zoomTarget = 1; spinning = !reduceMotion; if (rated) startSearch(); else startChallenge(); }

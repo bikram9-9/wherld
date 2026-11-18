@@ -282,6 +282,32 @@ body[data-view="home"] { --chrome: 96px; }
 body[data-live="1"] { --chrome: 268px; }
 
 .dock, .sheet-x, .sheet-bd { display: none; }
+.howto { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgba(5, 10, 15, 0.72); }
+.howto-card { position: relative; width: min(380px, 100%); background: var(--paper); color: var(--paper-ink); padding: 18px 22px 16px; border-radius: 3px; box-shadow: 0 24px 50px rgba(0,0,0,0.6); transform: rotate(-1deg); display: flex; flex-direction: column; gap: 12px; }
+.howto-card::before, .howto-card::after { content: ""; position: absolute; top: -10px; width: 70px; height: 22px; background: rgba(240, 214, 140, 0.72); }
+.howto-card::before { left: -14px; transform: rotate(-30deg); } .howto-card::after { right: -14px; transform: rotate(28deg); }
+.howto-step h2 { font-family: var(--font-display); font-weight: 800; font-size: 24px; margin: 0 0 6px; }
+.howto-step p { margin: 0 0 10px; font-size: 16px; color: #2f3a45; }
+.howto-pi { width: 86px; height: 86px; margin: 0 auto 6px; }
+.howto-tip { font-size: 14px !important; background: #f6f0e0; border: 1.5px dashed var(--paper-line); border-radius: 8px; padding: 8px 10px; }
+.hot { color: #c20d1a; } .cold { color: #2b4fb8; }
+.demo-input { display: flex; gap: 8px; }
+.demo-field { flex: 1; background: var(--panel); color: var(--text); border: 1px solid var(--amber); border-radius: 8px; padding: 8px 12px; font-size: 15px; }
+.demo-field i { display: inline-block; width: 2px; height: 1em; background: var(--text); vertical-align: -0.15em; margin-left: 1px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.demo-btn { background: var(--amber); color: #1b1304; font-weight: 700; border-radius: 8px; padding: 8px 14px; }
+.demo-chips { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 10px; }
+.demo-chips span { display: inline-flex; align-items: center; gap: 8px; background: var(--panel); color: var(--text); border-radius: 999px; padding: 4px 12px 4px 8px; font-size: 14px; font-weight: 500; }
+.demo-chips i { width: 14px; height: 14px; border-radius: 50%; }
+.demo-chips small { color: var(--muted); font-size: 13px; }
+.demo-legend { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #47525e; }
+.demo-legend i { display: block; width: 120px; height: 9px; border-radius: 5px; background: linear-gradient(90deg, #0a2a8f, #9fc3ff 50%, #ffada3 50%, #c20d1a); }
+.howto-nav { display: flex; align-items: center; gap: 12px; border-top: 1.5px dashed var(--paper-ink); padding-top: 12px; }
+.howto-nav .btn.primary { margin-left: auto; padding: 8px 18px; font-size: 17px; box-shadow: 0 3px 0 var(--paper-ink); }
+.howto-dots { display: flex; gap: 6px; }
+.howto-dots i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--paper-ink); }
+.howto-dots i.on { background: var(--paper-ink); }
+@media (prefers-reduced-motion: reduce) { .demo-field i { animation: none; } }
 @media (max-width: 900px) {
   .brand p { display: none; }
   .wrap { padding-bottom: 84px; }
@@ -384,6 +410,7 @@ body[data-live="1"] { --chrome: 268px; }
           <button type="button" class="btn" id="play-blitz">Blitz</button>
         </div>
         <button type="button" class="link center" id="open-boards">Leaderboards</button>
+        <button type="button" class="link center" id="open-howto">How to play</button>
       </div>
       <div id="lb-boards" hidden style="display:contents">
         <p class="flyer-kicker">Leaderboards</p>
@@ -492,6 +519,37 @@ body[data-live="1"] { --chrome: 268px; }
      </div>
     </section>
 
+    <div class="howto" id="howto" hidden role="dialog" aria-modal="true" aria-labelledby="howto-title">
+      <div class="howto-card">
+        <p class="flyer-kicker">How to play</p>
+        <div class="howto-step" data-step>
+          <div class="howto-pi" data-pi aria-hidden="true"></div>
+          <h2 id="howto-title">Find Pi</h2>
+          <p>Pi, a goldendoodle, is hiding in a mystery country. <b>Type any country</b> in the box and press <b>Guess</b>.</p>
+          <div class="demo-input" aria-hidden="true"><span class="demo-field">Bra<i></i></span><span class="demo-btn">Guess</span></div>
+        </div>
+        <div class="howto-step" data-step hidden>
+          <h2>Warmer means closer</h2>
+          <p>Each guess lights up on the globe. <b class="hot">Red</b> is close to Pi, <b class="cold">blue</b> is far. The arrow points the way to Pi.</p>
+          <div class="demo-chips" aria-hidden="true">
+            <span><i style="background:#2b4fb8"></i>Brazil <small>6,140 mi</small> ↗</span>
+            <span><i style="background:#ffada3"></i>Spain <small>1,320 mi</small> →</span>
+            <span><i style="background:#c20d1a"></i>Greece <small>310 mi</small> ↘</span>
+          </div>
+          <div class="demo-legend" aria-hidden="true"><span>far</span><i></i><span>close</span></div>
+        </div>
+        <div class="howto-step" data-step hidden>
+          <h2>Clues help you sniff</h2>
+          <p>You get <b>6 guesses</b>. Every miss opens a new clue in the case file: population, continent, language, food, flag and outline.</p>
+          <p class="howto-tip">Stuck? A <b>trail hint</b> drops Pi's paw print near his hiding spot. You get 3 free every day.</p>
+        </div>
+        <div class="howto-step" data-step data-race hidden>
+          <h2>Racing a rival</h2>
+          <p>You both hunt the <b>same countries</b>. Find Pi and you move to the next one; miss 6 times and that country is skipped. <b>First to the target wins.</b></p>
+        </div>
+        <div class="howto-nav"><span class="howto-dots" id="howto-dots"></span><button type="button" class="link" id="howto-skip">Skip</button><button type="button" class="btn primary" id="howto-next">Next</button></div>
+      </div>
+    </div>
     <div class="sheet-bd" id="sheet-bd" aria-hidden="true"></div>
     <div class="casefile" id="casefile">
       <button type="button" class="sheet-x" id="sheet-x" aria-label="Close clues">Close</button>
@@ -1517,6 +1575,28 @@ async function shareImage() {
   } catch (e) { if (e.name !== "AbortError") $("msg").textContent = "Couldn't make the image here. Try it on wherespi.com."; }
 }
 
+/* ---------- First-time guide ---------- */
+let howtoSteps = [], howtoAt = 0, howtoThen = null;
+function showHowto(then, race) {
+  howtoThen = then || null;
+  howtoSteps = [...document.querySelectorAll("#howto [data-step]")].filter((el) => race || !("race" in el.dataset));
+  howtoAt = 0; paintHowto(); $("howto").hidden = false; $("howto-next").focus();
+}
+function paintHowto() {
+  document.querySelectorAll("#howto [data-step]").forEach((el) => { el.hidden = el !== howtoSteps[howtoAt]; });
+  $("howto-dots").innerHTML = howtoSteps.map((_, i) => '<i class="' + (i === howtoAt ? "on" : "") + '"></i>').join("");
+  const last = howtoAt === howtoSteps.length - 1;
+  $("howto-next").textContent = last ? (howtoThen ? "Let's play" : "Got it") : "Next";
+  $("howto-skip").hidden = last;
+}
+function closeHowto() {
+  $("howto").hidden = true; store.set("seen-howto", true);
+  const f = howtoThen; howtoThen = null;
+  if (f) { f(); setTimeout(() => { if (view === "play" && !M.done) { buddy("wag", "Type a country to start sniffing!"); $("guess").focus(); } }, 700); }
+}
+// Runs a game start, showing the guide first if this browser has never seen it.
+function firstTime(fn, race) { if (store.get("seen-howto")) fn(); else showHowto(fn, race); }
+
 /* ---------- Phone bottom sheet (case file) ---------- */
 let lastPing = -1, wasDone = false;
 function openSheet(open) {
@@ -1730,16 +1810,20 @@ function drawShape(v) {
 /* ---------- Buttons ---------- */
 $("home").addEventListener("click", goHome);
 $("to-home").addEventListener("click", goHome);
-$("play-daily").addEventListener("click", () => startSolo("daily"));
-$("play-practice").addEventListener("click", () => startSolo("practice"));
-$("play-city").addEventListener("click", () => startSolo("city"));
+$("play-daily").addEventListener("click", () => firstTime(() => startSolo("daily")));
+$("play-practice").addEventListener("click", () => firstTime(() => startSolo("practice")));
+$("play-city").addEventListener("click", () => firstTime(() => startSolo("city")));
+$("open-howto").addEventListener("click", () => showHowto(null, true));
+$("howto-next").addEventListener("click", () => { if (howtoAt < howtoSteps.length - 1) { howtoAt++; paintHowto(); } else closeHowto(); });
+$("howto-skip").addEventListener("click", closeHowto);
+addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("howto").hidden) closeHowto(); });
 $("play-blitz").addEventListener("click", () => { lobby = "blitz"; render(); });
-document.querySelectorAll("[data-min]").forEach((b) => b.addEventListener("click", () => startSolo("blitz", +b.dataset.min)));
+document.querySelectorAll("[data-min]").forEach((b) => b.addEventListener("click", () => firstTime(() => startSolo("blitz", +b.dataset.min))));
 $("play-online").addEventListener("click", () => needProfile(() => { raceFor = "online"; lobby = "race"; render(); }));
 $("play-friend").addEventListener("click", () => needProfile(() => { raceFor = "friend"; lobby = "race"; render(); }));
 document.querySelectorAll("[data-race]").forEach((b) => b.addEventListener("click", () => {
   raceTarget = +b.dataset.race; store.set("race-target", raceTarget);
-  if (raceFor === "friend") startChallenge(); else startSearch();
+  firstTime(() => { if (raceFor === "friend") startChallenge(); else startSearch(); }, true);
 }));
 const leavePlay = () => { if (view === "play") goHome(); return view === "home"; };
 $("open-shop").addEventListener("click", () => { if (leavePlay()) needProfile(() => { lobby = "shop"; $("shop-note").hidden = true; render(); }); });
@@ -1847,7 +1931,7 @@ function start(snap) {
     }
     if (recovering && session && lobby !== "mfa") { view = "home"; lobby = "newpass"; render(); }
     else if (justConfirmed && session && lobby === "menu") { lobbyNote = "Email confirmed. Welcome to Where's Pi!"; render(); }
-    if (invite && lobby !== "mfa") needProfile(() => joinChallenge(invite[1]));
+    if (invite && lobby !== "mfa") needProfile(() => firstTime(() => joinChallenge(invite[1]), true));
   }).catch((e) => { track("error", { msg: "Map failed to load: " + (e && e.message), src: "start" }); $("offline").hidden = false; $("offline").textContent = "The map could not load. Reload the page to try again."; });
 }
 window.claude?.hot?.snapshot?.(() => (view === "play" && solo && solo.mode !== "blitz") ? { solo: { mode: solo.mode, day: solo.day, answer: solo.answer, guesses: solo.guesses } } : {});

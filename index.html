@@ -76,6 +76,8 @@ header { display: flex; flex-wrap: wrap; align-items: center; justify-content: s
 .chips .pill, .chip-btn { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 12px; color: var(--muted); white-space: nowrap; font-family: var(--font-display); font-size: 14px; font-weight: 600; }
 .chips b { color: var(--text); font-weight: 600; }
 .chips .coin b { color: var(--amber); }
+.sound-btn { padding: 4px 9px !important; line-height: 1; }
+.sound-btn[aria-pressed="false"] { opacity: 0.6; }
 .rank-chip { text-decoration: none; } .rank-chip:hover { border-color: var(--doodle); color: var(--text); }
 .treat { display: inline-block; width: 1.5em; height: 0.9em; vertical-align: -0.12em; margin-right: 3px; }
 .chips .coin { display: inline-flex; align-items: center; }
@@ -395,6 +397,7 @@ body[data-live="1"] { --chrome: 268px; }
         <span class="pill coin" title="Treats"><span class="treat-icon" aria-hidden="true"></span><span class="sr">Treats</span> <b id="chip-coins"></b></span>
       </span>
       <button type="button" class="chip-btn" id="open-account" hidden>Sign in</button>
+      <button type="button" class="chip-btn sound-btn" id="sound" aria-pressed="true" title="Music and sounds"><span aria-hidden="true">🔊</span><span class="sr">Sound</span></button>
       <button type="button" class="chip-btn gold" id="open-shop">Shop</button>
     </div>
   </header>
@@ -620,6 +623,7 @@ body[data-live="1"] { --chrome: 268px; }
 
 <script src="metrics.js"></script>
 <script src="pi.js"></script>
+<script src="sound.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -1127,6 +1131,7 @@ async function finishDaily(won) {
 function blitzNext(found) {
   const was = byKey.get(solo.answer).name;
   if (found) solo.score++; else solo.missed++;
+  sfx(found ? "found" : "missed");
   buddy(found ? "bark" : "whimper", found ? "Found me! That's " + solo.score + "." : "I was in " + was + "!");
   $("msg").textContent = (found ? "Found Pi in " : "Pi was in ") + was + ". Next country.";
   solo.answer = pick(answerPool, solo.answer); solo.guesses = []; solo.fresh = -1; pulseKey = null;
@@ -1155,7 +1160,7 @@ async function useHint() {
   track("hint", { mode: solo.mode });
   solo.hint = offsetPoint(byKey.get(solo.answer).center, 150 + Math.random() * 550, Math.random() * 360);
   if (solo.mode === "daily") saveDaily();
-  buddy("wag", "I left a paw print!");
+  buddy("wag", "I left a paw print!"); sfx("hint");
   $("msg").textContent = "Pi's paw print is within 700 miles of the hiding spot.";
   flyTo(solo.hint); render();
 }
@@ -1181,6 +1186,7 @@ function feedback(before, after) {
   else if (prev) { if (Math.abs(g.d - prev.d) < 25) { mood = ""; word = "Hmm. About the same."; } else if (g.d < prev.d) { mood = "wag"; word = "Warmer!"; } else { mood = "whimper"; word = "Colder..."; } }
   else if (g.d < 1500) { mood = "wag"; word = "Ooh, hot start!"; } else if (g.d < 4000) { mood = "wag"; word = "Warm start."; } else { mood = "whimper"; word = "Brr. Cold start."; }
   buddy(mood, word);
+  sfx(mood === "bark" ? "close" : mood === "wag" ? "warmer" : mood === "whimper" ? "colder" : "neutral");
   const m = $("msg"); m.textContent = "";
   m.append(cty.name + " is " + miles(g.d) + " from Pi " + arrow(g.b) + " ");
   if (after.clues.length > before.clues.length) {
@@ -1218,7 +1224,7 @@ async function submit(key) {
   }
   if (found || out) {
     solo.fresh = -1; $("msg").textContent = "";
-    toast(found ? "Found Pi!" : "Pi stays hidden", found ? "good" : "colder");
+    toast(found ? "Found Pi!" : "Pi stays hidden", found ? "good" : "colder"); sfx(found ? "found" : "missed");
     buddy(found ? "bark" : "whimper", found ? "You found me!" : "I was in " + byKey.get(solo.answer).name + "!");
     flyTo(byKey.get(solo.answer).center);
     track("game_end", { mode: solo.mode, won: found, guesses: solo.guesses.length, ms: Date.now() - gameT0, hint: !!solo.hint });
@@ -1542,13 +1548,14 @@ function applyLive(s, mine) {
       const w = s.result.winner;
       track("game_end", { mode: s.rated ? "ranked" : s.opp && s.opp.bot ? "bot" : "friend", won: w === "me", result: w, target: s.target, found: s.result.found, opp_found: s.result.oppFound, ms: Date.now() - gameT0 });
       toast(w === "me" ? "Victory" : w === "opp" ? "Defeat" : "Draw", w === "me" ? "good" : w === "opp" ? "colder" : "");
+      sfx(w === "me" ? "win" : w === "opp" ? "lose" : "neutral");
       buddy(w === "me" ? "bark" : "whimper", w === "me" ? "You won the race!" : w === "opp" ? "Next race is yours!" : "A tie!");
       $("msg").textContent = "";
       const a = byKey.get(s.result.answer); if (a) flyTo(a.center);
     }
   } else if (newRound && s.last) {
     const L = s.last, cty = byKey.get(L.answer);
-    toast(L.ok ? "Found Pi! " + s.found + " of " + s.target : "Pi was in " + L.answerName, L.ok ? "good" : "colder");
+    toast(L.ok ? "Found Pi! " + s.found + " of " + s.target : "Pi was in " + L.answerName, L.ok ? "good" : "colder"); sfx(L.ok ? "found" : "missed");
     buddy(L.ok ? "bark" : "whimper", L.ok ? "Found me! Next country." : "I was in " + L.answerName + "!");
     $("msg").textContent = (L.ok ? "Found Pi in " : "Out of guesses. Pi was in ") + L.answerName + ". On to the next country.";
     pulseKey = null; lastFeedback = Date.now();
@@ -1569,6 +1576,7 @@ function tickClock() {
     if (solo.over) return;
     const left = Math.max(0, Math.ceil((solo.endsAt - Date.now()) / 1000)), c = $("clock");
     c.textContent = fmt(left); c.className = "clock" + (left <= 10 ? " low" : "");
+    if (left > 0 && left <= 10 && left !== lastTick) { lastTick = left; sfx("tick"); }
     if (left <= 0) endBlitz();
     return;
   }
@@ -1579,6 +1587,7 @@ function tickClock() {
   else {
     const left = Math.max(0, Math.ceil((s.ends - now) / 1000)); phase = left > 0 ? "run" : "over";
     c.textContent = fmt(left); c.className = "clock" + (left <= 15 ? " low" : "");
+    if (left > 0 && left <= 10 && left !== lastTick) { lastTick = left; sfx("tick"); }
   }
   if (phase !== lastPhase) { lastPhase = phase; if (phase !== "pre") poll(); render(); }
 }
@@ -1615,6 +1624,12 @@ async function shareImage() {
     else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "wheres-pi.png"; document.body.append(a); a.click(); a.remove(); $("share").textContent = "Saved"; setTimeout(() => { $("share").textContent = "Share image"; }, 1600); }
   } catch (e) { if (e.name !== "AbortError") $("msg").textContent = "Couldn't make the image here. Try it on wherespi.com."; }
 }
+
+/* ---------- Sound (sound.js): music loop and effects, one on/off button ---------- */
+let lastTick = -1;
+const sfx = (name) => { try { if (window.piSound) window.piSound.fx(name); } catch (e) { /* silent */ } };
+function paintSound() { const on = !window.piSound || window.piSound.on; const b = $("sound"); b.setAttribute("aria-pressed", String(on)); b.firstElementChild.textContent = on ? "🔊" : "🔇"; b.title = on ? "Sound on. Tap to mute." : "Sound off. Tap for music and sounds."; }
+if (window.piSound) window.piSound.onChange(paintSound);
 
 /* ---------- First-time guide ---------- */
 let howtoSteps = [], howtoAt = 0, howtoThen = null;
@@ -1910,6 +1925,8 @@ $("ch-copy").addEventListener("click", async () => {
   catch (e) { box.focus(); box.select(); }
 });
 $("hint").addEventListener("click", useHint);
+$("sound").addEventListener("click", () => { if (window.piSound) window.piSound.toggle(); });
+paintSound();
 $("dock-hint").addEventListener("click", useHint);
 $("dock-clues").addEventListener("click", () => openSheet(!document.body.classList.contains("sheet")));
 $("sheet-x").addEventListener("click", () => openSheet(false));

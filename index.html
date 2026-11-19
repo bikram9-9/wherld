@@ -604,7 +604,7 @@ body[data-live="1"] { --chrome: 268px; }
         </div>
         <div class="howto-step" data-step hidden>
           <h2>Clues help you sniff</h2>
-          <p>You get <b>6 guesses</b>. Every miss opens a new clue in the case file: population, continent, language, food, flag and outline.</p>
+          <p>You get <b>6 guesses</b> and three clues in the case file: <b>population</b> from the start, <b>flag colors</b> after 2 misses, and <b>continent</b> after 4.</p>
           <p class="howto-tip">Stuck? A <b>trail hint</b> drops Pi's paw print near his hiding spot. You get 3 free every day.</p>
         </div>
         <div class="howto-step" data-step data-race hidden>
@@ -785,7 +785,9 @@ const MICRO = [
 ];
 const SKIP = new Set(["010", "260"]);
 const MAX_GUESSES = 6;
-const CLUE_LABELS = ["Population", "Continent", "Main language", "Famous dish", "Flag colors", "Outline"];
+// Three clues only, always in this order. Population shows at the start; each later clue unlocks after more misses.
+const CLUE_LABELS = ["Population", "Flag colors", "Continent"];
+const cluesShown = (misses) => 1 + (misses >= 2) + (misses >= 4);
 const EPOCH = new Date(2026, 10, 16); // daily case #1
 
 /* ---------- Server (Supabase). The key below is the public one, safe to ship. ---------- */
@@ -836,7 +838,7 @@ const piImg = new Image(); piImg.onload = () => { dirty = true; };
 
 /* ---------- City hunt data: [city, country, lat, lon, metro size, continent, time zone, main language] ---------- */
 const CITY_POP = { a: "Under 2 million", b: "2 to 5 million", c: "5 to 10 million", d: "10 to 20 million", e: "Over 20 million" };
-const CITY_LABELS = ["Metro size", "Continent", "Time zone", "Main language", "Country", "First letter"];
+const CITY_LABELS = ["Metro size", "Flag colors", "Continent"];
 const CITIES = [
   ["Tokyo", "Japan", 35.68, 139.69, "e", AS, "UTC+9", "Japanese"], ["Delhi", "India", 28.61, 77.21, "e", AS, "UTC+5:30", "Hindi"],
   ["Shanghai", "China", 31.23, 121.47, "e", AS, "UTC+8", "Mandarin Chinese"], ["São Paulo", "Brazil", -23.55, -46.63, "e", SA, "UTC-3", "Portuguese"],
@@ -898,7 +900,7 @@ const arrow = (deg) => ARROWS[Math.round(deg / 45) % 8];
 const miles = (d) => Math.round(d).toLocaleString("en-US") + " mi";
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const NEIGHBORS = new Map();
+const NEIGHBORS = new Map(), nameToKey = new Map();
 function addNeighbor(a, b) { if (!a || !b || a === b) return; (NEIGHBORS.get(a) || NEIGHBORS.set(a, new Set()).get(a)).add(b); (NEIGHBORS.get(b) || NEIGHBORS.set(b, new Set()).get(b)).add(a); }
 const borders = (a, b) => !!(NEIGHBORS.get(a) && NEIGHBORS.get(a).has(b));
 let countries = [], byKey = new Map(), answerPool = [], SHAPES = {}, cityList = [], cityKeys = [];
@@ -1070,19 +1072,19 @@ const fmt = (t) => Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
 /* ---------- One model for the screen, whichever mode is running ---------- */
 const serverNow = () => Date.now() + (live ? live.skew : 0);
 function soloClues() {
-  if (solo.mode === "city") { const c = byKey.get(solo.answer).city; return [CITY_POP[c[4]], c[5], c[6], c[7], c[1], c[0][0]]; }
+  if (solo.mode === "city") { const c = byKey.get(solo.answer).city, k = nameToKey.get(c[1]); return [CITY_POP[c[4]], "flag:" + ((CASES[k] && CASES[k][4]) || ""), c[5]]; }
   const d = CASES[solo.answer];
-  return [POP[d[0]], d[1], d[2], d[3], "flag:" + d[4], "key:" + solo.answer];
+  return [POP[d[0]], "flag:" + d[4], d[1]];
 }
 function model() {
   if (view === "play" && live && live.s) {
     const s = live.s, r = s.result;
-    return { kind: "live", labels: CLUE_LABELS, guesses: s.guesses, clues: (s.clues || []).map((v, i) => i === 4 ? "flag:" + v : i === 5 ? "shape:" + v : v),
+    return { kind: "live", labels: CLUE_LABELS, guesses: s.guesses, clues: (s.clues || []).map((v, i) => i === 1 ? "flag:" + v : v),
       done: s.status === "done", won: !!r && r.winner === "me", answer: r ? r.answer : null, fresh: live.fresh, started: !!s.starts && serverNow() >= s.starts, hint: null };
   }
   if (view === "play" && solo) {
     const blitz = solo.mode === "blitz", won = solo.guesses.includes(solo.answer), roundOver = won || solo.guesses.length >= MAX_GUESSES;
-    const done = blitz ? !!solo.over : roundOver, shown = done && !blitz ? 6 : Math.min(6, solo.guesses.length + 1);
+    const done = blitz ? !!solo.over : roundOver, shown = done && !blitz ? 3 : cluesShown(solo.guesses.length);
     return { kind: solo.mode, labels: solo.mode === "city" ? CITY_LABELS : CLUE_LABELS,
       guesses: solo.guesses.map((k) => ({ key: k, d: distance(k, solo.answer), b: bearing(k, solo.answer), ok: k === solo.answer, adj: k !== solo.answer && borders(k, solo.answer) })),
       clues: blitz && solo.over ? [] : soloClues().slice(0, shown), done, won, answer: done && !blitz ? solo.answer : null,
@@ -1762,9 +1764,9 @@ function render() {
     ol.append(li);
   });
   const sh = M.clues.find((v) => /^(key|shape):/.test(v)); if (sh) drawShape(sh);
-  const locked = 6 - M.clues.length;
+  const locked = M.labels.length - M.clues.length, made = M.guesses.length, nextAt = made < 2 ? 2 : 4;
   $("locknote").hidden = locked === 0 || M.done;
-  $("locknote").textContent = isLive && !M.started ? "Clues open when the clock starts." : locked + (locked === 1 ? " more clue" : " more clues") + " locked. Each miss opens one.";
+  $("locknote").textContent = isLive && !M.started ? "Clues open when the clock starts." : locked + (locked === 1 ? " more clue" : " more clues") + " locked. The next one opens after " + (nextAt - made) + (nextAt - made === 1 ? " more miss." : " more misses.");
 
   // guesses
   const gl = $("glist"); gl.textContent = "";
@@ -1798,7 +1800,7 @@ function render() {
   // phone dock: same hint button, plus the clue count that opens the case file
   $("dock-hint").hidden = $("hint").hidden; $("dock-hint").disabled = $("hint").disabled;
   $("dock-hint").textContent = M.hint ? "Trail used" : profile && profile.hintsFree > 0 ? "Hint · " + profile.hintsFree + " free" : "Hint · " + ((profile && profile.hintPrice) || 20) + " treats";
-  $("dock-n").textContent = M.done ? "Result" : (isLive && !M.started ? 0 : M.clues.length) + "/6";
+  $("dock-n").textContent = M.done ? "Result" : (isLive && !M.started ? 0 : M.clues.length) + "/" + M.labels.length;
   if (M.fresh < 0) lastPing = -1;
   if (M.fresh >= 0 && M.fresh !== lastPing) { lastPing = M.fresh; const d = $("dock-clues"); d.classList.remove("ping"); void d.offsetWidth; d.classList.add("ping"); }
   if (M.done && !wasDone && window.matchMedia("(max-width: 900px)").matches) setTimeout(() => openSheet(true), 1400);
@@ -2009,6 +2011,7 @@ function start(snap) {
       ({ key, name, feature: null, center: [lon, lat], search: [norm(name)].concat(al ? al.split("|") : []) })))
       .sort((a, b) => a.name.localeCompare(b.name));
     byKey = new Map(countries.map((c) => [c.key, c]));
+    countries.forEach((c) => nameToKey.set(c.name, c.key));
     // Land borders, from the map itself (plus microstates the map is too coarse to show).
     const gs = world.objects.countries.geometries;
     topojson.neighbors(gs).forEach((list, i) => list.forEach((j) => addNeighbor(gs[i].id, gs[j].id)));

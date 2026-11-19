@@ -18,6 +18,8 @@
   --brand: "Pacifico", cursive; --ui: "Bricolage Grotesque", system-ui, sans-serif; --type: "Special Elite", "Courier New", monospace;
 }
 * { box-sizing: border-box; }
+html, body { overflow-x: hidden; overscroll-behavior-x: none; }
+@supports (overflow: clip) { html, body { overflow-x: clip; } }  /* no sideways drag on phones */
 body { margin: 0; background: var(--ink); color: var(--text); font: 16px/1.5 var(--ui); }
 main { max-width: 720px; margin: 0 auto; padding: 14px 16px 60px; }
 header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 26px; }

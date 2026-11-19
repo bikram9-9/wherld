@@ -4,6 +4,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap" rel="stylesheet">
 <style>
 :root { color-scheme: dark; --ink:#0e1a25; --paper:#ebe2cc; --text:#e6ecf1; --muted:#8ea3b5; --doodle:#e3ad55; }
+html, body { overflow-x: hidden; overscroll-behavior-x: none; }
+@supports (overflow: clip) { html, body { overflow-x: clip; } }  /* no sideways drag on phones */
 body { margin:0; background:var(--ink); color:var(--text); font:16px/1.6 "Bricolage Grotesque", system-ui, sans-serif; }
 main { max-width: 680px; margin: 0 auto; padding: 32px 18px 64px; }
 a { color: var(--doodle); }

@@ -554,6 +554,13 @@ body[data-live="1"] { --chrome: 268px; }
         <div class="modes"><button type="button" class="btn" data-min="1">1 min</button><button type="button" class="btn" data-min="3">3 min</button><button type="button" class="btn" data-min="5">5 min</button></div>
         <button type="button" class="btn" data-back>Back</button>
       </div>
+      <div id="lb-practice" hidden style="display:contents">
+        <p class="flyer-kicker">Practice</p>
+        <h2>Race the clock</h2>
+        <p>Pick how many countries. Find Pi in all of them as fast as you can.</p>
+        <div class="modes two-col"><button type="button" class="btn" data-count="3">3 countries<small data-best="3"></small></button><button type="button" class="btn" data-count="5">5 countries<small data-best="5"></small></button><button type="button" class="btn" data-count="10">10 countries<small data-best="10"></small></button><button type="button" class="btn" data-count="20">20 countries<small data-best="20"></small></button></div>
+        <button type="button" class="btn" data-back>Back</button>
+      </div>
       <div id="lb-race" hidden style="display:contents">
         <p class="flyer-kicker" id="race-kicker">Play online</p>
         <h2>Race to find Pi</h2>
@@ -916,7 +923,9 @@ function addNeighbor(a, b) { if (!a || !b || a === b) return; (NEIGHBORS.get(a) 
 const borders = (a, b) => !!(NEIGHBORS.get(a) && NEIGHBORS.get(a).has(b));
 let countries = [], byKey = new Map(), answerPool = [], SHAPES = {}, cityList = [], cityKeys = [];
 let view = "home";            // "home" | "play"
-let solo = null;              // {mode: "daily"|"practice", day, answer, guesses: [keys], fresh}
+let solo = null;              // {mode: "daily"|"practice"|"city"|"blitz", day, answer, guesses: [keys], fresh}; practice adds target, score, missed, t0
+const isRun = (m) => m === "blitz" || m === "practice";   // many countries in a row against a clock
+const practiceBest = () => store.get("practice-best") || {};
 let live = null;              // {id, s: server state, skew, fresh}
 let profile = null, online = true, lobby = "menu", afterName = null;
 let raceFor = "online", raceTarget = [5, 15, 20].includes(store.get("race-target")) ? store.get("race-target") : 5;
@@ -1094,11 +1103,11 @@ function model() {
       done: s.status === "done", won: !!r && r.winner === "me", answer: r ? r.answer : null, fresh: live.fresh, started: !!s.starts && serverNow() >= s.starts, hint: null };
   }
   if (view === "play" && solo) {
-    const blitz = solo.mode === "blitz", won = solo.guesses.includes(solo.answer), roundOver = won || solo.guesses.length >= MAX_GUESSES;
-    const done = blitz ? !!solo.over : roundOver, shown = done && !blitz ? 3 : Math.min(3, solo.revealed || 0);
+    const run = isRun(solo.mode), won = solo.guesses.includes(solo.answer), roundOver = won || solo.guesses.length >= MAX_GUESSES;
+    const done = run ? !!solo.over : roundOver, shown = done && !run ? 3 : Math.min(3, solo.revealed || 0);
     return { kind: solo.mode, labels: solo.mode === "city" ? CITY_LABELS : CLUE_LABELS,
       guesses: solo.guesses.map((k) => ({ key: k, d: distance(k, solo.answer), b: bearing(k, solo.answer), ok: k === solo.answer, adj: k !== solo.answer && borders(k, solo.answer) })),
-      clues: blitz && solo.over ? [] : soloClues().slice(0, shown), done, won, answer: done && !blitz ? solo.answer : null,
+      clues: run && solo.over ? [] : soloClues().slice(0, shown), done, won, answer: done && !run ? solo.answer : null,
       fresh: solo.fresh, started: true, hint: solo.hint || null };
   }
   return { kind: "none", labels: CLUE_LABELS, guesses: [], clues: [], done: false, won: false, answer: null, fresh: -1, started: false, hint: null };
@@ -1128,10 +1137,11 @@ function startSolo(mode, opt) {
     const run = solo;
     if (profile && online) rpc("wh_blitz_start", { p_token: token(), p_minutes: opt }).then((r) => { run.run = r.run; }).catch(() => {});
   } else {
-    solo = { mode: "practice", answer: pick(answerPool, prev), guesses: [], fresh: -1, hint: null };
+    solo = { mode: "practice", target: opt || 5, answer: pick(answerPool, prev), guesses: [], fresh: -1, hint: null, score: 0, missed: 0, t0: Date.now(), over: false };
+    clockTimer = setInterval(tickClock, 250);
   }
   gameT0 = Date.now();
-  if (!(solo.mode === "daily" && solo.guesses.length)) track("game_start", { mode: solo.mode, minutes: solo.minutes });
+  if (!(solo.mode === "daily" && solo.guesses.length)) track("game_start", { mode: solo.mode, minutes: solo.minutes, target: solo.target });
   enterPlay();
 }
 function enterPlay() {
@@ -1169,10 +1179,24 @@ function blitzNext(found) {
   const was = byKey.get(solo.answer).name;
   if (found) solo.score++; else solo.missed++;
   sfx(found ? "found" : "missed");
-  buddy(found ? "bark" : "whimper", found ? "Found me! That's " + solo.score + "." : "I was in " + was + "!");
-  $("msg").textContent = (found ? "Found Pi in " : "Pi was in ") + was + ". Next country.";
-  solo.answer = pick(answerPool, solo.answer); solo.guesses = []; solo.fresh = -1; solo.revealed = 0; pulseKey = null;
+  if (solo.mode === "practice" && solo.score >= solo.target) { endPractice(was); return; }
+  const togo = solo.mode === "practice" ? solo.target - solo.score : 0;
+  buddy(found ? "bark" : "whimper", found ? (togo ? "Found me! " + togo + " to go." : "Found me! That's " + solo.score + ".") : "I was in " + was + "!");
+  $("msg").textContent = (found ? "Found Pi in " : "Pi was in ") + was + "." + (found || solo.mode !== "practice" ? "" : " Skipped, it doesn't count.") + " Next country.";
+  solo.answer = pick(answerPool, solo.answer); solo.guesses = []; solo.fresh = -1; solo.revealed = 0; solo.hint = null; pulseKey = null;
 }
+// Practice ends when Pi has been found in every country the player picked. Best times stay on this device.
+function endPractice(was) {
+  const ms = Date.now() - solo.t0, bests = practiceBest(), prev = bests[solo.target] || null;
+  solo.over = true; solo.guesses = []; solo.ms = ms; solo.prevBest = prev; solo.newBest = !prev || ms < prev;
+  clearInterval(clockTimer); clockTimer = null;
+  if (solo.newBest) { bests[solo.target] = ms; store.set("practice-best", bests); }
+  toast(solo.newBest && prev ? "New best!" : "All found!", "good");
+  buddy("bark", "You found me in " + was + "!");
+  $("msg").textContent = "";
+  track("game_end", { mode: "practice", target: solo.target, missed: solo.missed, ms, best: solo.newBest });
+}
+const clockMs = (ms) => { const t = Math.floor(ms / 1000); return fmt(t) + "." + Math.floor((ms % 1000) / 100); };
 async function endBlitz() {
   if (!solo || solo.mode !== "blitz" || solo.over) return;
   const mine = solo;
@@ -1270,7 +1294,7 @@ async function submit(key) {
   solo.guesses.push(key);
   const found = key === solo.answer, out = solo.guesses.length >= MAX_GUESSES;
   if (solo.mode === "daily") saveDaily();
-  if (solo.mode === "blitz") {
+  if (isRun(solo.mode)) {
     if (found || out) blitzNext(found);
     else { solo.fresh = -1; feedback(before, model()); }
     render(); return;
@@ -1627,6 +1651,10 @@ function applyLive(s, mine) {
 }
 function tickClock() {
   if (view === "home" && lobby === "searching") $("search-time").textContent = fmt(Math.floor((Date.now() - searchStart) / 1000));
+  if (view === "play" && solo && solo.mode === "practice") {
+    if (!solo.over) { $("clock").textContent = fmt(Math.floor((Date.now() - solo.t0) / 1000)); $("clock").className = "clock"; }
+    return;
+  }
   if (view === "play" && solo && solo.mode === "blitz") {
     if (solo.over) return;
     const left = Math.max(0, Math.ceil((solo.endsAt - Date.now()) / 1000)), c = $("clock");
@@ -1652,12 +1680,13 @@ const squares = () => M.guesses.map((g) => g.ok ? "🟩" : g.adj ? "🟧" : g.d 
 function shareLine() {
   if (M.kind === "live") { const r = live.s.result; return (r.winner === "me" ? "Won" : r.winner === "opp" ? "Lost" : "Tied") + " a race to " + live.s.target + " vs " + live.s.opp.name + " · " + r.found + "–" + r.oppFound; }
   if (M.kind === "blitz") return "Blitz " + solo.minutes + " min · found Pi " + solo.score + (solo.score === 1 ? " time" : " times");
+  if (M.kind === "practice") return "Found Pi in " + solo.target + " countries in " + clockMs(solo.ms) + (solo.missed ? " · " + solo.missed + " skipped" : "");
   const where = byKey.get(solo.answer).name;
   return M.won ? "Found Pi in " + where + " · " + M.guesses.length + "/" + MAX_GUESSES : "Pi hid in " + where;
 }
 function shareText() {
-  const head = M.kind === "daily" ? "Where's Pi #" + (solo.day + 1) : M.kind === "live" ? "Where's Pi 1v1" : M.kind === "city" ? "Where's Pi · City hunt" : M.kind === "blitz" ? "Where's Pi" : "Where's Pi (practice)";
-  return head + "\n" + shareLine() + (M.kind === "blitz" || M.kind === "live" ? "" : "\n" + squares()) + "\nwherespi.com";
+  const head = M.kind === "daily" ? "Where's Pi #" + (solo.day + 1) : M.kind === "live" ? "Where's Pi 1v1" : M.kind === "city" ? "Where's Pi · City hunt" : M.kind === "blitz" ? "Where's Pi" : "Where's Pi · Practice";
+  return head + "\n" + shareLine() + (isRun(M.kind) || M.kind === "live" ? "" : "\n" + squares()) + "\nwherespi.com";
 }
 async function shareImage() {
   try {
@@ -1721,15 +1750,15 @@ function render() {
   if (!live || view !== "play") observe("match", null);
   M = model();
   document.body.dataset.view = view;
-  const isLive = M.kind === "live", isBlitz = M.kind === "blitz";
-  document.body.dataset.live = isLive || isBlitz ? "1" : "0";
+  const isLive = M.kind === "live", isBlitz = M.kind === "blitz", isPractice = M.kind === "practice";
+  document.body.dataset.live = isLive || isBlitz || isPractice ? "1" : "0";
   if (((profile && profile.outfit) || "") !== paintedOutfit) paintPi();
 
   $("open-shop").hidden = !profile;
   if (profile) { $("chip-rating").textContent = profile.rank ? "#" + profile.rank : profile.tier || "Pup"; $("chip-coins").textContent = profile.coins; }
 
   // lobby
-  ["menu", "name", "search", "shop", "blitz", "race", "challenge", "boards", "account", "newpass", "mfa", "mfasetup"].forEach((k) => { $("lb-" + k).hidden = lobby !== (k === "search" ? "searching" : k); });
+  ["menu", "name", "search", "shop", "blitz", "practice", "race", "challenge", "boards", "account", "newpass", "mfa", "mfasetup"].forEach((k) => { $("lb-" + k).hidden = lobby !== (k === "search" ? "searching" : k); });
   $("who").hidden = !profile;
   $("rename").hidden = !profile; $("rename").lastChild.textContent = session ? "Account" : "Change nickname"; $("rename").firstChild.textContent = session ? "👤" : "✏️";
   if (profile) { $("who-name").textContent = profile.name; $("who-stats").textContent = "Your ranked record: " + profile.wins + " W · " + profile.losses + " L · " + profile.draws + " D"; } else $("who-stats").textContent = "";
@@ -1747,12 +1776,13 @@ function render() {
   $("race-kicker").textContent = raceFor === "friend" ? "Challenge a friend" : "Play online";
   $("ch-sub").textContent = "First to " + raceTarget + " countries. Send this link; the race starts when your friend opens it.";
   if (lobby === "shop") { paintShop(); paintCoinStore(); }
+  if (lobby === "practice") { const b = practiceBest(); document.querySelectorAll("[data-best]").forEach((el) => { const ms = b[el.dataset.best]; el.textContent = ms ? "Best " + clockMs(ms) : ""; }); }
   paintBoard();
 
   if (view !== "play") { if (document.body.classList.contains("sheet")) openSheet(false); wasDone = false; lastPing = -1; dirty = true; return; }
 
   // top bar: rival and clock (live) or score and clock (blitz)
-  $("versus").hidden = !(isLive || isBlitz);
+  $("versus").hidden = !(isLive || isBlitz || isPractice);
   if (isLive) {
     const s = live.s;
     $("vs-me").textContent = s.me.name; $("vs-me-rt").textContent = (s.found || 0) + " of " + (s.target || 1) + " found · " + tierOf(s.me.rating);
@@ -1765,11 +1795,16 @@ function render() {
     $("vs-me").textContent = "Blitz · " + solo.minutes + " min"; $("vs-me-rt").textContent = "Six guesses per country";
     $("vs-opp").textContent = solo.score + " found"; $("vs-bot").hidden = true; $("vs-opp-rt").textContent = solo.missed + " missed"; $("pips").hidden = true; $("resign").hidden = true;
     if (solo.over) { $("clock").textContent = "Time"; $("clock").className = "clock pre"; }
+  } else if (isPractice) {
+    const best = practiceBest()[solo.target];
+    $("vs-me").textContent = "Practice · " + solo.target + " countries"; $("vs-me-rt").textContent = best ? "Best " + clockMs(best) : "Six guesses per country";
+    $("vs-opp").textContent = solo.score + " of " + solo.target + " found"; $("vs-bot").hidden = true; $("vs-opp-rt").textContent = solo.missed + " skipped"; $("pips").hidden = true; $("resign").hidden = true;
+    if (solo.over) { $("clock").textContent = clockMs(solo.ms); $("clock").className = "clock"; }
   }
 
   // case file
-  $("caseno").textContent = isLive ? (live.s.status === "done" ? "Race to " + live.s.target : "Country " + ((live.s.round || 0) + 1) + " · race to " + live.s.target) : M.kind === "daily" ? "Daily No. " + (solo.day + 1) : M.kind === "city" ? "City hunt" : isBlitz ? "Blitz" : "Practice round";
-  const canReveal = !M.done && M.kind !== "none" && !(isLive && !M.started) && !(isBlitz && solo.over);
+  $("caseno").textContent = isLive ? (live.s.status === "done" ? "Race to " + live.s.target : "Country " + ((live.s.round || 0) + 1) + " · race to " + live.s.target) : M.kind === "daily" ? "Daily No. " + (solo.day + 1) : M.kind === "city" ? "City hunt" : isBlitz ? "Blitz" : isPractice ? "Practice · country " + Math.min(solo.target, solo.score + 1) + " of " + solo.target : "Practice round";
+  const canReveal = !M.done && M.kind !== "none" && !(isLive && !M.started) && !((isBlitz || isPractice) && solo.over);
   const ol = $("clues"); ol.textContent = "";
   M.labels.forEach((label, i) => {
     const li = document.createElement("li");
@@ -1870,6 +1905,13 @@ function render() {
       $("scoreline").textContent = solo.missed + " missed on the " + solo.minutes + " minute clock." + (solo.extra ? " Your best: " + solo.extra.best + "." : profile ? "" : " Pick a nickname on the home page to save scores.");
       if (solo.extra) { gains.hidden = false; gains.textContent = "Treats +" + solo.extra.earned; }
       again.textContent = "Play again";
+    } else if (isPractice) {
+      const prev = solo.prevBest;
+      stamp.textContent = solo.newBest && prev ? "New best" : "Case closed"; stamp.className = "stamp win";
+      $("ans").textContent = solo.target + " countries in " + clockMs(solo.ms);
+      $("scoreline").textContent = (solo.missed ? solo.missed + (solo.missed === 1 ? " country" : " countries") + " skipped after 6 guesses. " : "No skips. ")
+        + (!prev ? "That's your first time on this length." : solo.newBest ? "Beat your old best of " + clockMs(prev) + "." : "Your best is " + clockMs(prev) + ".");
+      again.textContent = "Play again";
     } else {
       stamp.textContent = M.won ? "Found Pi" : "Still hiding"; stamp.className = "stamp " + (M.won ? "win" : "loss");
       $("ans").textContent = "Pi was in " + byKey.get(M.answer).name;
@@ -1940,7 +1982,8 @@ function drawShape(v) {
 $("home").addEventListener("click", goHome);
 $("to-home").addEventListener("click", goHome);
 $("play-daily").addEventListener("click", () => firstTime(() => startSolo("daily")));
-$("play-practice").addEventListener("click", () => firstTime(() => startSolo("practice")));
+$("play-practice").addEventListener("click", () => { lobby = "practice"; render(); });
+document.querySelectorAll("[data-count]").forEach((b) => b.addEventListener("click", () => firstTime(() => startSolo("practice", +b.dataset.count))));
 $("play-city").addEventListener("click", () => firstTime(() => startSolo("city")));
 $("open-howto").addEventListener("click", () => showHowto(null, true));
 $("howto-next").addEventListener("click", () => { if (howtoAt < howtoSteps.length - 1) { howtoAt++; paintHowto(); } else closeHowto(); });
@@ -2012,7 +2055,8 @@ $("share").addEventListener("click", shareImage);
 $("again").addEventListener("click", () => {
   if (M.kind === "live") { const rated = live.s.rated; raceTarget = live.s.target || raceTarget; zoomTarget = 1; spinning = !reduceMotion; if (rated) startSearch(); else startChallenge(); }
   else if (M.kind === "blitz") startSolo("blitz", solo.minutes);
-  else startSolo(M.kind === "city" ? "city" : "practice");
+  else if (M.kind === "practice") startSolo("practice", solo.target);
+  else startSolo("city");
 });
 $("copy").addEventListener("click", async () => {
   const text = shareText(), box = $("sharebox");
@@ -2058,7 +2102,7 @@ function start(snap) {
     answerPool = Object.keys(CASES).filter((k) => byKey.has(k)).sort();
     cityList = CITIES.map((c) => ({ key: "city:" + c[0], name: c[0] + ", " + c[1], short: c[0], center: [c[3], c[2]], city: c, search: [norm(c[0])] })).sort((a, b) => a.name.localeCompare(b.name));
     cityList.forEach((c) => byKey.set(c.key, c)); cityKeys = cityList.map((c) => c.key);
-    const ok = snap && snap.solo && byKey.has(snap.solo.answer) && (snap.solo.mode === "city" || CASES[snap.solo.answer]);
+    const ok = snap && snap.solo && byKey.has(snap.solo.answer) && !isRun(snap.solo.mode) && (snap.solo.mode === "city" || CASES[snap.solo.answer]);
     if (ok && !invite) { solo = { mode: snap.solo.mode, day: snap.solo.day, answer: snap.solo.answer, guesses: (snap.solo.guesses || []).filter((k) => byKey.has(k)), fresh: -1, hint: null, t0: Date.now(), sent: true, extra: null }; enterPlay(); }
     else render();
     resize();
@@ -2078,7 +2122,7 @@ function start(snap) {
     if (invite && lobby !== "mfa") needProfile(() => firstTime(() => joinChallenge(invite[1]), true));
   }).catch((e) => { track("error", { msg: "Map failed to load: " + (e && e.message), src: "start" }); $("offline").hidden = false; $("offline").textContent = "The map could not load. Reload the page to try again."; });
 }
-window.claude?.hot?.snapshot?.(() => (view === "play" && solo && solo.mode !== "blitz") ? { solo: { mode: solo.mode, day: solo.day, answer: solo.answer, guesses: solo.guesses } } : {});
+window.claude?.hot?.snapshot?.(() => (view === "play" && solo && !isRun(solo.mode)) ? { solo: { mode: solo.mode, day: solo.day, answer: solo.answer, guesses: solo.guesses } } : {});
 if (window.claude?.hot?.ready) window.claude.hot.ready(start); else start(window.claude?.hot?.data ?? {});
 </script>
 </body>

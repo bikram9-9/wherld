@@ -212,7 +212,7 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 .note { font-size: 13px; color: var(--airmail-red) !important; font-weight: 500; }
 
 /* Case file */
-.casefile { position: absolute; top: 14px; right: 0; z-index: 4; width: 246px; min-height: 246px; transform: rotate(1.4deg); background: var(--paper); color: var(--paper-ink); border-radius: 3px 12px 3px 3px; padding: 10px 14px 2px; box-shadow: 5px 5px 0 -1px #cdbf9f, 9px 9px 0 -2px #b9aa87, 0 20px 40px rgba(0,0,0,0.5); }
+.casefile { position: absolute; top: 14px; right: 0; z-index: 4; width: 246px; min-height: 246px; background: var(--paper); color: var(--paper-ink); border-radius: 3px 12px 3px 3px; padding: 10px 14px 2px; box-shadow: 5px 5px 0 -1px #cdbf9f, 9px 9px 0 -2px #b9aa87, 0 20px 40px rgba(0,0,0,0.5); }
 .casefile::before { content: ""; position: absolute; top: -10px; left: 12px; width: 96px; height: 12px; background: var(--paper); border-radius: 6px 6px 0 0; }
 .cf-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-bottom: 6px; border-bottom: 2px solid var(--paper-ink); }
 .cf-head h2 { font-family: var(--font-display); font-weight: 800; font-size: 16px; margin: 0; }
@@ -314,7 +314,7 @@ body[data-live="1"] { --chrome: 268px; }
 
 .dock, .sheet-x, .sheet-bd { display: none; }
 .howto { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgba(5, 10, 15, 0.72); }
-.howto-card { position: relative; width: min(380px, 100%); background: var(--paper); color: var(--paper-ink); padding: 18px 22px 16px; border-radius: 3px; box-shadow: 0 24px 50px rgba(0,0,0,0.6); transform: rotate(-1deg); display: flex; flex-direction: column; gap: 12px; }
+.howto-card { position: relative; width: min(380px, 100%); background: var(--paper); color: var(--paper-ink); padding: 18px 22px 16px; border-radius: 3px; box-shadow: 0 24px 50px rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 12px; }
 .howto-card::before, .howto-card::after { content: ""; position: absolute; top: -10px; width: 70px; height: 22px; background: rgba(240, 214, 140, 0.72); }
 .howto-card::before { left: -14px; transform: rotate(-30deg); } .howto-card::after { right: -14px; transform: rotate(28deg); }
 .howto-step h2 { font-family: var(--font-display); font-weight: 800; font-size: 24px; margin: 0 0 6px; }

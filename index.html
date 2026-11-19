@@ -88,7 +88,9 @@ header { display: flex; flex-wrap: wrap; align-items: center; justify-content: s
 .menu-bars::before { top: -5px; } .menu-bars::after { top: 5px; }
 .menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 60; width: 230px; background: var(--paper); color: var(--paper-ink); border-radius: 6px; padding: 8px; box-shadow: 0 18px 40px rgba(0,0,0,0.55); display: flex; flex-direction: column; }
 .menu-who { padding: 6px 8px 10px; margin-bottom: 4px; border-bottom: 1.5px dashed var(--paper-line); display: flex; flex-direction: column; gap: 2px; }
-.menu-who b { font-size: 16px; }
+.menu-who b, .menu b { color: var(--paper-ink); }
+.menu-who > b { font-size: 16px; }
+.menu-who .rank-chip b { color: var(--doodle-deep); }
 .menu-who .rank-chip { color: var(--doodle-deep); font-size: 13px; font-weight: 600; text-decoration: none; }
 .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; color: inherit; font: inherit; font-size: 15px; font-weight: 600; text-align: left; text-decoration: none; padding: 9px 8px; border-radius: 6px; cursor: pointer; }
 .menu-item:hover, .menu-item:focus-visible { background: #f6f0e0; }

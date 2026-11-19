@@ -76,8 +76,25 @@ header { display: flex; flex-wrap: wrap; align-items: center; justify-content: s
 .chips .pill, .chip-btn { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 12px; color: var(--muted); white-space: nowrap; font-family: var(--font-display); font-size: 14px; font-weight: 600; }
 .chips b { color: var(--text); font-weight: 600; }
 .chips .coin b { color: var(--amber); }
-.sound-btn { padding: 4px 9px !important; line-height: 1; }
-.sound-btn[aria-pressed="false"] { opacity: 0.6; }
+.chips { position: relative; }
+.chips .coin { cursor: pointer; font: inherit; color: var(--muted); }
+.chips .coin:hover { border-color: var(--doodle); }
+.menu-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 3px 10px 3px 4px; cursor: pointer; color: var(--text); }
+.menu-btn:hover, .menu-btn[aria-expanded="true"] { border-color: var(--doodle); }
+.menu-pi { width: 28px; height: 28px; display: block; }
+.menu-pi svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.menu-bars, .menu-bars::before, .menu-bars::after { display: block; width: 14px; height: 2px; border-radius: 1px; background: currentColor; position: relative; }
+.menu-bars::before, .menu-bars::after { content: ""; position: absolute; left: 0; }
+.menu-bars::before { top: -5px; } .menu-bars::after { top: 5px; }
+.menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 60; width: 230px; background: var(--paper); color: var(--paper-ink); border-radius: 6px; padding: 8px; box-shadow: 0 18px 40px rgba(0,0,0,0.55); display: flex; flex-direction: column; }
+.menu-who { padding: 6px 8px 10px; margin-bottom: 4px; border-bottom: 1.5px dashed var(--paper-line); display: flex; flex-direction: column; gap: 2px; }
+.menu-who b, .menu b { color: var(--paper-ink); }
+.menu-who > b { font-size: 16px; }
+.menu-who .rank-chip b { color: var(--doodle-deep); }
+.menu-who .rank-chip { color: var(--doodle-deep); font-size: 13px; font-weight: 600; text-decoration: none; }
+.menu-item { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; color: inherit; font: inherit; font-size: 15px; font-weight: 600; text-align: left; text-decoration: none; padding: 9px 8px; border-radius: 6px; cursor: pointer; }
+.menu-item:hover, .menu-item:focus-visible { background: #f6f0e0; }
+.menu-item span { width: 20px; text-align: center; }
 .rank-chip { text-decoration: none; } .rank-chip:hover { border-color: var(--doodle); color: var(--text); }
 .treat { display: inline-block; width: 1.5em; height: 0.9em; vertical-align: -0.12em; margin-right: 3px; }
 .chips .coin { display: inline-flex; align-items: center; }
@@ -323,16 +340,14 @@ body[data-live="1"] { --chrome: 268px; }
   .wrap { padding: 8px 12px 0; gap: 8px; }
   header { flex-wrap: nowrap; gap: 8px; }
   .brand button { font-size: 24px; gap: 6px; }
-  .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 6px; font-size: 13px; min-width: 0; }
-  .chips::-webkit-scrollbar { display: none; }
+  .chips { flex-wrap: nowrap; gap: 6px; font-size: 13px; }
+  .menu { width: min(240px, calc(100vw - 24px)); }
   .chips .pill, .chip-btn { padding: 4px 10px; font-size: 13px; }
-  #who { display: none; }
 
   body[data-view="play"] { overflow: hidden; height: 100dvh; overscroll-behavior: none; }
   body[data-view="play"] .wrap { height: 100dvh; }
   body[data-view="play"] main.stage { flex: 1; min-height: 0; gap: 6px; }
   body[data-view="play"] .globe-box { flex: 1; min-height: 0; height: auto; }
-  body[data-view="play"] #chips .rank-chip, body[data-view="play"] #open-account { display: none; }
 
   .versus { max-width: none; min-width: 0; padding: 4px 10px; }
   .guessbar { max-width: none; padding: 0; }
@@ -393,14 +408,18 @@ body[data-live="1"] { --chrome: 268px; }
       <p>Find the country Pi is hiding in.</p>
     </div>
     <div class="chips">
-      <span id="who" hidden><button type="button" class="chip-btn" id="rename" title="Change your name"><b id="who-name"></b></button></span>
-      <span class="chip-group" id="chips" hidden>
-        <a class="pill rank-chip" href="ranks.html" title="Your rank: open the Ranks page">Rank <b id="chip-rating"></b></a>
-        <span class="pill coin" title="Treats"><span class="treat-icon" aria-hidden="true"></span><span class="sr">Treats</span> <b id="chip-coins"></b></span>
-      </span>
-      <button type="button" class="chip-btn" id="open-account" hidden>Sign in</button>
-      <button type="button" class="chip-btn sound-btn" id="sound" aria-pressed="true" title="Music and sounds"><span aria-hidden="true">🔊</span><span class="sr">Sound</span></button>
-      <button type="button" class="chip-btn gold" id="open-shop">Shop</button>
+      <button type="button" class="pill coin" id="open-shop" title="Your treats. Tap for the Shop."><span class="treat-icon" aria-hidden="true"></span><span class="sr">Treats: </span><b id="chip-coins">0</b></button>
+      <button type="button" class="menu-btn" id="menu-btn" aria-haspopup="true" aria-expanded="false" aria-controls="menu" title="Menu"><span class="menu-pi" data-pi aria-hidden="true"></span><span class="menu-bars" aria-hidden="true"></span><span class="sr">Menu</span></button>
+      <div class="menu" id="menu" hidden>
+        <div class="menu-who" id="who" hidden><b id="who-name"></b><a class="rank-chip" href="ranks.html">Rank <b id="chip-rating"></b></a></div>
+        <a class="menu-item" href="ranks.html"><span aria-hidden="true">🏆</span>Ranks</a>
+        <button type="button" class="menu-item" id="menu-shop"><span aria-hidden="true">🛍️</span>Shop</button>
+        <button type="button" class="menu-item" id="menu-boards"><span aria-hidden="true">📋</span>Leaderboards</button>
+        <button type="button" class="menu-item" id="menu-howto"><span aria-hidden="true">❓</span>How to play</button>
+        <button type="button" class="menu-item" id="sound" aria-pressed="true"><span aria-hidden="true">🔊</span>Sound: on</button>
+        <button type="button" class="menu-item" id="rename" hidden><span aria-hidden="true">✏️</span>Change nickname</button>
+        <button type="button" class="menu-item" id="open-account" hidden><span aria-hidden="true">👤</span>Sign in</button>
+      </div>
     </div>
   </header>
 
@@ -1635,7 +1654,7 @@ async function shareImage() {
 /* ---------- Sound (sound.js): music loop and effects, one on/off button ---------- */
 let lastTick = -1;
 const sfx = (name) => { try { if (window.piSound) window.piSound.fx(name); } catch (e) { /* silent */ } };
-function paintSound() { const on = !window.piSound || window.piSound.on; const b = $("sound"); b.setAttribute("aria-pressed", String(on)); b.firstElementChild.textContent = on ? "🔊" : "🔇"; b.title = on ? "Sound on. Tap to mute." : "Sound off. Tap for music and sounds."; }
+function paintSound() { const on = !window.piSound || window.piSound.on; const b = $("sound"); b.setAttribute("aria-pressed", String(on)); b.firstElementChild.textContent = on ? "🔊" : "🔇"; b.lastChild.textContent = on ? "Sound: on" : "Sound: off"; }
 if (window.piSound) window.piSound.onChange(paintSound);
 
 /* ---------- First-time guide ---------- */
@@ -1675,12 +1694,13 @@ function render() {
   document.body.dataset.live = isLive || isBlitz ? "1" : "0";
   if (((profile && profile.outfit) || "") !== paintedOutfit) paintPi();
 
-  $("chips").hidden = !profile;
+  $("open-shop").hidden = !profile;
   if (profile) { $("chip-rating").textContent = profile.rank ? "#" + profile.rank : profile.tier || "Pup"; $("chip-coins").textContent = profile.coins; }
 
   // lobby
   ["menu", "name", "search", "shop", "blitz", "race", "challenge", "boards", "account", "newpass", "mfa", "mfasetup"].forEach((k) => { $("lb-" + k).hidden = lobby !== (k === "search" ? "searching" : k); });
   $("who").hidden = !profile;
+  $("rename").hidden = !profile; $("rename").lastChild.textContent = session ? "Account" : "Change nickname"; $("rename").firstChild.textContent = session ? "👤" : "✏️";
   if (profile) { $("who-name").textContent = profile.name; $("who-stats").textContent = "Your ranked record: " + profile.wins + " W · " + profile.losses + " L · " + profile.draws + " D"; } else $("who-stats").textContent = "";
   $("play-online").disabled = !online; $("play-friend").disabled = !online; $("open-shop").disabled = !online; $("offline").hidden = online;
   $("lobby-note").hidden = !lobbyNote; $("lobby-note").textContent = lobbyNote;
@@ -1933,6 +1953,14 @@ $("ch-copy").addEventListener("click", async () => {
 });
 $("hint").addEventListener("click", useHint);
 $("sound").addEventListener("click", () => { if (window.piSound) window.piSound.toggle(); });
+function openMenu(open) { $("menu").hidden = !open; $("menu-btn").setAttribute("aria-expanded", String(open)); }
+$("menu-btn").addEventListener("click", (e) => { e.stopPropagation(); openMenu($("menu").hidden); });
+$("menu").addEventListener("click", (e) => { if (e.target.closest(".menu-item") && e.target.closest("#sound") === null) openMenu(false); });
+document.addEventListener("click", (e) => { if (!$("menu").hidden && !e.target.closest("#menu")) openMenu(false); });
+addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("menu").hidden) { openMenu(false); $("menu-btn").focus(); } });
+$("menu-shop").addEventListener("click", () => $("open-shop").click());
+$("menu-boards").addEventListener("click", () => { if (leavePlay()) $("open-boards").click(); });
+$("menu-howto").addEventListener("click", () => showHowto(null, true));
 paintSound();
 $("dock-hint").addEventListener("click", useHint);
 $("dock-clues").addEventListener("click", () => openSheet(!document.body.classList.contains("sheet")));

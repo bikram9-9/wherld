@@ -596,6 +596,7 @@ body[data-live="1"] { --chrome: 268px; }
         <div class="pulse" style="align-self:center" aria-hidden="true"></div>
         <p id="search-time" style="text-align:center">0:00</p>
         <p style="text-align:center" id="search-hint">No one after 10 seconds? You'll get a bot.</p>
+        <button type="button" class="btn primary" id="search-bot" hidden>Play with a bot now</button>
         <button type="button" class="btn" id="search-cancel">Cancel</button>
       </div>
      </div>
@@ -1126,6 +1127,7 @@ function dailyAnswer(day) {
 }
 function saveDaily() { store.set("sd-daily", { day: solo.day, guesses: solo.guesses, hint: solo.hint, revealed: solo.revealed || 0, t0: solo.t0, sent: solo.sent, extra: solo.extra }); }
 function startSolo(mode, opt) {
+  onlineSearch = null;
   stopPolling(); live = null;
   const prev = solo ? solo.answer : null;
   if (mode === "daily") {
@@ -1158,6 +1160,7 @@ function enterPlay() {
 function goHome() {
   if (view === "home" && (lobby === "searching" || lobby === "challenge")) { cancelSearch(); return; }
   if (live && live.s && live.s.status === "active") { askResign(); return; }
+  onlineSearch = null;
   view = "home"; lobby = "menu"; stopPolling(); live = null; solo = null;
   zoomTarget = 1; spinning = !reduceMotion;
   render(); loadBoard();
@@ -1402,6 +1405,7 @@ async function saveNewPassword() {
   finally { $("np-save").disabled = false; }
 }
 async function signOut() {
+  onlineSearch = null;
   stopPolling(); live = null;
   try { await sb.auth.signOut(); } catch (e) { /* already signed out */ }
   session = null; profile = null; mfaOn = false; view = "home"; lobby = "menu"; solo = null;
@@ -1549,24 +1553,51 @@ function paintPi() {
 }
 
 let pollTimer = null, clockTimer = null, searchStart = 0, busy = false, joining = false, challengeLink = "", lobbyNote = "";
+let onlineSearch = null;
 function stopPolling() { clearInterval(pollTimer); clearInterval(clockTimer); pollTimer = clockTimer = null; }
-function watch(id) {
+function watch(id, state) {
   live = { id, s: null, skew: 0, fresh: -1 };
   stopPolling();
   pollTimer = setInterval(poll, 1500); clockTimer = setInterval(tickClock, 250);
-  poll();
+  if (state) applyLive(state, false); else poll();
 }
 async function startSearch() {
-  view = "home"; lobby = "searching"; joining = false; lobbyNote = ""; searchStart = Date.now(); solo = null; live = null; render();
+  stopPolling();
+  view = "home"; lobby = "searching"; joining = false; lobbyNote = ""; searchStart = Date.now(); solo = null; live = null;
+  const search = { request: rpc("wh_find_match", { p_token: token(), p_target: raceTarget }), action: "" };
+  onlineSearch = search;
+  render();
   track("match_search");
-  try { watch((await rpc("wh_find_match", { p_token: token(), p_target: raceTarget })).match); }
-  catch (e) {
+  try {
+    const { match } = await search.request;
+    if (onlineSearch === search && lobby === "searching" && search.action !== "cancel") watch(match);
+  } catch (e) {
+    if (onlineSearch !== search || lobby !== "searching" || search.action === "cancel") return;
+    onlineSearch = null;
     lobby = "menu"; if (e.network) online = false; else lobbyNote = e.message;
     if (/Unknown player/.test(e.message)) { profile = null; lobbyNote = ""; needProfile(startSearch); return; }
     render();
   }
 }
+async function playBot() {
+  const search = onlineSearch;
+  if (!search || search.action || joining || view !== "home" || lobby !== "searching") return;
+  search.action = "bot";
+  lobbyNote = "";
+  render();
+  try {
+    const { match } = await search.request;
+    if (onlineSearch !== search || view !== "home" || lobby !== "searching") return;
+    const state = await rpc("wh_play_bot", { p_token: token(), p_match: match });
+    if (onlineSearch === search && view === "home" && lobby === "searching") watch(match, state);
+  } catch (e) {
+    if (onlineSearch === search && view === "home" && lobby === "searching") lobbyNote = e.message;
+  } finally {
+    if (onlineSearch === search) { search.action = ""; render(); }
+  }
+}
 async function startChallenge() {
+  onlineSearch = null;
   view = "home"; lobby = "challenge"; challengeLink = ""; lobbyNote = ""; solo = null; live = null; render();
   track("challenge_create");
   try {
@@ -1577,6 +1608,7 @@ async function startChallenge() {
   render();
 }
 async function joinChallenge(code) {
+  onlineSearch = null;
   view = "home"; lobby = "searching"; joining = true; lobbyNote = ""; searchStart = Date.now(); solo = null; live = null; render();
   track("challenge_join");
   try {
@@ -1600,14 +1632,30 @@ async function askResign() {
   finally { b.disabled = false; b.textContent = "Resign"; b.classList.remove("sure"); }
 }
 async function cancelSearch() {
-  stopPolling(); live = null; lobby = "menu"; render();
-  try { await rpc("wh_cancel", { p_token: token() }); } catch (e) { /* nothing waiting */ }
+  const search = onlineSearch;
+  if (search && search.action) return;
+  stopPolling(); live = null;
+  if (search) {
+    search.action = "cancel";
+    render();
+  } else { lobby = "menu"; render(); }
+  try {
+    if (search) await search.request;
+    await rpc("wh_cancel", { p_token: token() });
+  } catch (e) { /* nothing waiting */ }
+  if (search && onlineSearch === search) {
+    onlineSearch = null;
+    if (lobby === "searching") { lobby = "menu"; lobbyNote = ""; render(); }
+  }
 }
 async function poll() {
-  if (!live || busy || pending) return;
+  const match = live;
+  if (!match || busy || pending || onlineSearch?.action) return;
   busy = true;
-  try { const s = await rpc("wh_state", { p_token: token(), p_match: live.id }); if (live && s.id === live.id) applyLive(s, false); }
-  catch (e) { if (view === "play") $("msg").textContent = e.message; }
+  try {
+    const s = await rpc("wh_state", { p_token: token(), p_match: match.id });
+    if (live === match && !onlineSearch?.action && s.id === match.id) applyLive(s, false);
+  } catch (e) { if (live === match && view === "play") $("msg").textContent = e.message; }
   finally { busy = false; }
 }
 let lastPhase = "", lastFeedback = 0;
@@ -1616,6 +1664,7 @@ function applyLive(s, mine) {
   live.s = s; live.skew = s.now - Date.now(); profile = s.me;
   if (s.status === "waiting") { render(); return; }
   if (view !== "play") {
+    onlineSearch = null;
     live.fresh = -1; enterPlay(); gameT0 = Date.now();
     observe("match", { id: live.id, mode: s.rated ? "ranked" : s.opp.bot ? "bot" : "friend", target: s.target, opponent: s.opp.name, opponentBot: !!s.opp.bot });
     track("game_start", { mode: s.rated ? "ranked" : s.opp.bot ? "bot" : "friend", target: s.target });
@@ -1774,8 +1823,12 @@ function render() {
   if (session) { $("au-who").textContent = "Signed in as " + (session.user.email || "your account"); $("au-mfa").textContent = mfaOn ? "Turn off two-step sign-in" : "Turn on two-step sign-in"; }
   const st = store.get("sd-stats");
   { const run = st && st.lastDay >= todayIndex() - 1 && st.streak; $("daily-sub").hidden = !run; $("daily-sub").textContent = run ? "Streak " + st.streak : ""; }
-  $("search-title").textContent = joining ? "Joining the match" : "Finding an opponent";
-  $("search-hint").hidden = joining;
+  const searchAction = onlineSearch?.action;
+  $("search-title").textContent = joining ? "Joining the match" : searchAction === "bot" ? "Starting your race" : searchAction === "cancel" ? "Cancelling search" : "Finding an opponent";
+  $("search-hint").hidden = joining || !!searchAction;
+  $("search-bot").hidden = joining || lobby !== "searching" || !onlineSearch;
+  $("search-bot").disabled = !!searchAction;
+  $("search-cancel").disabled = !!searchAction;
   $("ch-link").value = challengeLink || "Making your link...";
   $("ch-copy").disabled = !challengeLink;
   $("race-kicker").textContent = raceFor === "friend" ? "Challenge a friend" : "Play online";
@@ -2033,6 +2086,7 @@ $("lb-name").addEventListener("submit", async (e) => {
   catch (ex) { err.textContent = ex.message; err.hidden = false; if (ex.network) online = false; }
   finally { $("nick-save").disabled = false; }
 });
+$("search-bot").addEventListener("click", playBot);
 $("search-cancel").addEventListener("click", cancelSearch);
 $("ch-cancel").addEventListener("click", cancelSearch);
 $("ch-copy").addEventListener("click", async () => {

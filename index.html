@@ -236,6 +236,8 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 .guesses .nm { font-weight: 500; }
 .guesses .ds { font-family: var(--font-display); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); }
 .guesses .ar { font-size: 15px; }
+.guesses .ds.adj { color: #ffb37a; font-weight: 700; }
+.msg .adj-note { color: #ffb37a; }
 .guesses .empty { color: var(--muted); font-size: 13px; }
 
 /* Modes grid, board tabs, shop */
@@ -877,6 +879,9 @@ const arrow = (deg) => ARROWS[Math.round(deg / 45) % 8];
 const miles = (d) => Math.round(d).toLocaleString("en-US") + " mi";
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+const NEIGHBORS = new Map();
+function addNeighbor(a, b) { if (!a || !b || a === b) return; (NEIGHBORS.get(a) || NEIGHBORS.set(a, new Set()).get(a)).add(b); (NEIGHBORS.get(b) || NEIGHBORS.set(b, new Set()).get(b)).add(a); }
+const borders = (a, b) => !!(NEIGHBORS.get(a) && NEIGHBORS.get(a).has(b));
 let countries = [], byKey = new Map(), answerPool = [], SHAPES = {}, cityList = [], cityKeys = [];
 let view = "home";            // "home" | "play"
 let solo = null;              // {mode: "daily"|"practice", day, answer, guesses: [keys], fresh}
@@ -1060,7 +1065,7 @@ function model() {
     const blitz = solo.mode === "blitz", won = solo.guesses.includes(solo.answer), roundOver = won || solo.guesses.length >= MAX_GUESSES;
     const done = blitz ? !!solo.over : roundOver, shown = done && !blitz ? 6 : Math.min(6, solo.guesses.length + 1);
     return { kind: solo.mode, labels: solo.mode === "city" ? CITY_LABELS : CLUE_LABELS,
-      guesses: solo.guesses.map((k) => ({ key: k, d: distance(k, solo.answer), b: bearing(k, solo.answer), ok: k === solo.answer })),
+      guesses: solo.guesses.map((k) => ({ key: k, d: distance(k, solo.answer), b: bearing(k, solo.answer), ok: k === solo.answer, adj: k !== solo.answer && borders(k, solo.answer) })),
       clues: blitz && solo.over ? [] : soloClues().slice(0, shown), done, won, answer: done && !blitz ? solo.answer : null,
       fresh: solo.fresh, started: true, hint: solo.hint || null };
   }
@@ -1182,13 +1187,15 @@ function clueText(v) { return v.startsWith("flag:") ? v.slice(5).split(" ").map(
 function feedback(before, after) {
   const g = after.guesses[after.guesses.length - 1], prev = after.guesses[after.guesses.length - 2], cty = byKey.get(g.key);
   let mood, word;
-  if (g.d < 500) { mood = "bark"; word = "Woof! So close!"; }
+  if (g.adj) { mood = "bark"; word = "Neighbors! I'm right next door!"; toast("Adjacent!", "warmer"); }
+  else if (g.d < 500) { mood = "bark"; word = "Woof! So close!"; }
   else if (prev) { if (Math.abs(g.d - prev.d) < 25) { mood = ""; word = "Hmm. About the same."; } else if (g.d < prev.d) { mood = "wag"; word = "Warmer!"; } else { mood = "whimper"; word = "Colder..."; } }
   else if (g.d < 1500) { mood = "wag"; word = "Ooh, hot start!"; } else if (g.d < 4000) { mood = "wag"; word = "Warm start."; } else { mood = "whimper"; word = "Brr. Cold start."; }
   buddy(mood, word);
   sfx(mood === "bark" ? "close" : mood === "wag" ? "warmer" : mood === "whimper" ? "colder" : "neutral");
   const m = $("msg"); m.textContent = "";
-  m.append(cty.name + " is " + miles(g.d) + " from Pi " + arrow(g.b) + " ");
+  if (g.adj) { const a = document.createElement("b"); a.className = "adj-note"; a.textContent = "🐾 Adjacent! " + cty.name + " borders Pi's country. "; m.append(a); }
+  else m.append(cty.name + " is " + miles(g.d) + " from Pi " + arrow(g.b) + " ");
   if (after.clues.length > before.clues.length) {
     const i = after.clues.length - 1, b = document.createElement("b");
     b.textContent = after.labels[i] + ": " + clueText(after.clues[i]);
@@ -1593,7 +1600,7 @@ function tickClock() {
 }
 
 /* ---------- Sharing ---------- */
-const squares = () => M.guesses.map((g) => g.ok ? "🟩" : g.d < 4000 ? "🟥" : "🟦").join("");
+const squares = () => M.guesses.map((g) => g.ok ? "🟩" : g.adj ? "🟧" : g.d < 4000 ? "🟥" : "🟦").join("");
 function shareLine() {
   if (M.kind === "live") { const r = live.s.result; return (r.winner === "me" ? "Won" : r.winner === "opp" ? "Lost" : "Tied") + " a race to " + live.s.target + " vs " + live.s.opp.name + " · " + r.found + "–" + r.oppFound; }
   if (M.kind === "blitz") return "Blitz " + solo.minutes + " min · found Pi " + solo.score + (solo.score === 1 ? " time" : " times");
@@ -1748,7 +1755,7 @@ function render() {
     b.setAttribute("aria-label", cty.name + (x.ok ? ", correct" : ", " + Math.round(x.d) + " miles away") + ". Show on globe.");
     const dot = document.createElement("span"); dot.className = "dot"; dot.style.background = x.ok ? "#3fae6b" : heatFor(x.d);
     const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = cty.short || cty.name;
-    const ds = document.createElement("span"); ds.className = "ds"; ds.textContent = x.ok ? "found" : miles(x.d);
+    const ds = document.createElement("span"); ds.className = "ds"; ds.textContent = x.ok ? "found" : x.adj ? "borders · " + miles(x.d) : miles(x.d); if (x.adj) ds.classList.add("adj");
     const ar = document.createElement("span"); ar.className = "ar"; ar.textContent = x.ok ? "✓" : arrow(x.b);
     b.append(dot, nm, ds, ar); b.addEventListener("click", () => flyTo(cty.center));
     li.append(b); gl.append(li);
@@ -1974,6 +1981,10 @@ function start(snap) {
       ({ key, name, feature: null, center: [lon, lat], search: [norm(name)].concat(al ? al.split("|") : []) })))
       .sort((a, b) => a.name.localeCompare(b.name));
     byKey = new Map(countries.map((c) => [c.key, c]));
+    // Land borders, from the map itself (plus microstates the map is too coarse to show).
+    const gs = world.objects.countries.geometries;
+    topojson.neighbors(gs).forEach((list, i) => list.forEach((j) => addNeighbor(gs[i].id, gs[j].id)));
+    [["336", "380"], ["674", "380"], ["492", "250"], ["020", "250"], ["020", "724"], ["438", "756"], ["438", "040"]].forEach(([a, b]) => addNeighbor(a, b));
     answerPool = Object.keys(CASES).filter((k) => byKey.has(k)).sort();
     cityList = CITIES.map((c) => ({ key: "city:" + c[0], name: c[0] + ", " + c[1], short: c[0], center: [c[3], c[2]], city: c, search: [norm(c[0])] })).sort((a, b) => a.name.localeCompare(b.name));
     cityList.forEach((c) => byKey.set(c.key, c)); cityKeys = cityList.map((c) => c.key);

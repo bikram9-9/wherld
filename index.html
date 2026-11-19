@@ -143,6 +143,9 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 .globe-box { position: relative; width: 100%; height: max(260px, calc(100dvh - var(--chrome, 212px))); overflow: hidden; border-radius: 14px; }
 #globe { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; outline: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #globe.dragging { cursor: grabbing; }
+.site-foot { position: fixed; left: 50%; bottom: 6px; transform: translateX(-50%); z-index: 20; font: 12px/1.4 var(--font-display); color: var(--muted); white-space: nowrap; }
+.site-foot a { color: var(--muted); text-decoration: none; }
+.site-foot a:hover { color: var(--doodle); text-decoration: underline; }
 .zoom { position: absolute; right: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 6px; }
 .zoom button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); font-size: 20px; line-height: 1; }
 .zoom button:hover { border-color: var(--amber); }
@@ -348,6 +351,7 @@ body[data-live="1"] { --chrome: 268px; }
   .chips .pill, .chip-btn { padding: 4px 10px; font-size: 13px; }
 
   body[data-view="play"] { overflow: hidden; height: 100dvh; overscroll-behavior: none; }
+  body[data-view="play"] .site-foot { display: none; }   /* the dock owns the bottom of the screen mid-game */
   body[data-view="play"] .wrap { height: 100dvh; }
   body[data-view="play"] main.stage { flex: 1; min-height: 0; gap: 6px; }
   body[data-view="play"] .globe-box { flex: 1; min-height: 0; height: auto; }
@@ -480,7 +484,6 @@ body[data-live="1"] { --chrome: 268px; }
         </div>
         <button type="button" class="link center" id="open-boards">Leaderboards</button>
         <button type="button" class="link center" id="open-howto">How to play</button>
-        <p class="record home-links"><a href="about.html">About</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a></p>
       </div>
       <div id="lb-boards" hidden style="display:contents">
         <p class="flyer-kicker">Leaderboards</p>
@@ -2125,5 +2128,6 @@ function start(snap) {
 window.claude?.hot?.snapshot?.(() => (view === "play" && solo && !isRun(solo.mode)) ? { solo: { mode: solo.mode, day: solo.day, answer: solo.answer, guesses: solo.guesses } } : {});
 if (window.claude?.hot?.ready) window.claude.hot.ready(start); else start(window.claude?.hot?.data ?? {});
 </script>
+<footer class="site-foot"><a href="about.html">About</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a></footer>
 </body>
 </html>

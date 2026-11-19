@@ -46,7 +46,7 @@
         blockSelector: ".ph-no-capture",
         maskTextSelector: ".ph-mask"
       },
-      loaded: (p) => { p.register({ env }); }
+      loaded: (p) => { p.register({ env }); flush(); }
     });
     ph = window.posthog;
   }
@@ -85,51 +85,58 @@
     });
   }
 
-  /* ---------- Hooks the game calls ---------- */
-  let lastUser = null, lastPlayer = "";
+  /* ---------- Hooks the game calls ----------
+     Calls made before PostHog's script has loaded are not reliably replayed, so the current account,
+     player and race are kept here and pushed to PostHog once it is ready (and on every change after). */
+  const MATCH_KEYS = ["match_id", "match_mode", "race_target", "opponent", "opponent_bot"];
+  const state = { user: null, player: null, match: null };
+  const sent = { user: "", player: "", match: "" };
+  function flush() {
+    if (!phReady()) return;
+    const u = state.user;
+    if (u && sent.user !== u.id) { sent.user = u.id; ph.identify(u.id, u.props); }
+    const pk = state.player ? JSON.stringify(state.player) : "";
+    if (pk && sent.player !== pk) { sent.player = pk; ph.setPersonProperties(state.player); ph.register({ nickname: state.player.nickname }); }
+    const mk = state.match ? JSON.stringify(state.match) : "";
+    if (sent.match !== mk) { sent.match = mk; if (state.match) ph.register(state.match); else MATCH_KEYS.forEach((k) => ph.unregister(k)); }
+  }
 
-  // Signed-in account (Supabase user) or null for guests.
+  // Signed-in account (Supabase user).
   api.identify = safe((user) => {
-    if (!user || !user.id || user.id === lastUser) return;
-    lastUser = user.id;
+    if (!user || !user.id || (state.user && state.user.id === user.id)) return;
     const provider = (user.app_metadata && user.app_metadata.provider) || "email";
-    if (ph) ph.identify(user.id, { email: user.email || undefined, auth_provider: provider, has_account: true });
-    if (S) S.setUser({ id: user.id });
+    state.user = { id: user.id, props: { email: user.email || undefined, auth_provider: provider, has_account: true } };
+    if (S) S.setUser(Object.assign({ id: user.id }, state.player ? { username: state.player.nickname } : {}));
+    flush();
   });
 
   api.signOut = safe(() => {
-    lastUser = null; lastPlayer = "";
-    if (ph) ph.reset();
+    if (!state.user) return;
+    state.user = null; state.player = null; state.match = null; sent.user = sent.player = sent.match = "";
+    if (phReady()) ph.reset();
     if (S) S.setUser(null);
   });
 
   // Game profile (guest or account): nickname, rank, treats, record.
   api.player = safe((p) => {
     if (!p) return;
-    const props = {
+    const next = {
       nickname: p.name, rank: p.rating, tier: p.tier, treats: p.coins, wins: p.wins, losses: p.losses, draws: p.draws,
       country: p.country || undefined, outfit: p.outfit || undefined, global_rank: p.rank || undefined
     };
-    const key = JSON.stringify(props);
-    if (key === lastPlayer) return;
-    lastPlayer = key;
-    if (ph) { ph.setPersonProperties(props); ph.register({ nickname: p.name }); }
-    if (S) S.setUser(Object.assign({}, lastUser ? { id: lastUser } : {}, { username: p.name }));
+    const changedName = !state.player || state.player.nickname !== next.nickname;
+    state.player = next;
+    if (S && changedName) S.setUser(Object.assign({}, state.user ? { id: state.user.id } : {}, { username: next.nickname }));
+    flush();
   });
 
   // Live 1v1 race: {id, mode, target, opponent, opponentBot} while playing, null when it is over.
-  let lastMatch = null;
   api.match = safe((m) => {
     const id = m && m.id ? String(m.id) : null;
-    if (id === lastMatch) return;
-    lastMatch = id;
-    if (id) {
-      if (ph) ph.register({ match_id: id, match_mode: m.mode, race_target: m.target, opponent: m.opponent, opponent_bot: !!m.opponentBot });
-      if (S) { S.setTag("match_id", id); S.setTag("match_mode", m.mode); }
-    } else {
-      if (ph) ["match_id", "match_mode", "race_target", "opponent", "opponent_bot"].forEach((k) => ph.unregister(k));
-      if (S) { S.setTag("match_id", undefined); S.setTag("match_mode", undefined); }
-    }
+    if (id === (state.match ? state.match.match_id : null)) return;
+    state.match = id ? { match_id: id, match_mode: m.mode, race_target: m.target, opponent: m.opponent, opponent_bot: !!m.opponentBot } : null;
+    if (S) { S.setTag("match_id", id || undefined); S.setTag("match_mode", id ? m.mode : undefined); }
+    flush();
   });
 
   // Game events from metrics.js (game_start, game_end, hint, share, sign_in, api_error...).

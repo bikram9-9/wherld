@@ -26,7 +26,9 @@
   const safe = (fn) => function () { try { return fn.apply(null, arguments); } catch (e) { /* never break the game */ } };
 
   /* ---------- PostHog ---------- */
-  let ph = null;
+  let phOn = false;
+  // The loader swaps window.posthog for the real client once array.js arrives, so always look it up.
+  const PH = () => (phOn ? window.posthog : null);
   if (!optedOut) {
     /* Official PostHog loader: queues calls until array.js arrives. */
     !function (t, e) { var o, n, p, r; e.__SV || (window.posthog = e, e._i = [], e.init = function (i, s, a) { function g(t, e) { var o = e.split("."); 2 == o.length && (t = t[o[0]], e = o[1]), t[e] = function () { t.push([e].concat(Array.prototype.slice.call(arguments, 0))) } } (p = t.createElement("script")).type = "text/javascript", p.crossOrigin = "anonymous", p.async = !0, p.src = s.api_host.replace(".i.posthog.com", "-assets.i.posthog.com") + "/static/array.js", (r = t.getElementsByTagName("script")[0]).parentNode.insertBefore(p, r); var u = e; for (void 0 !== a ? u = e[a] = [] : a = "posthog", u.people = u.people || [], u.toString = function (t) { var e = "posthog"; return "posthog" !== a && (e += "." + a), t || (e += " (stub)"), e }, u.people.toString = function () { return u.toString(1) + ".people (stub)" }, o = "init capture register register_once register_for_session unregister unregister_for_session identify setPersonProperties alias reset get_distinct_id get_session_id get_session_replay_url set_config startSessionRecording stopSessionRecording sessionRecordingStarted opt_in_capturing opt_out_capturing has_opted_out_capturing on onSessionId captureException getFeatureFlag isFeatureEnabled onFeatureFlags debug".split(" "), n = 0; n < o.length; n++)g(u, o[n]); e._i.push([i, s, a]) }, e.__SV = 1) }(document, window.posthog || []);
@@ -48,9 +50,9 @@
       },
       loaded: (p) => { p.register({ env }); flush(); }
     });
-    ph = window.posthog;
+    phOn = true;
   }
-  const phReady = () => ph && ph.__loaded;
+  const phReady = () => !!(PH() && PH().__loaded);
 
   /* ---------- Sentry ---------- */
   const S = window.Sentry && typeof window.Sentry.init === "function" ? window.Sentry : null;
@@ -69,11 +71,11 @@
       beforeSend(event) {
         if (phReady()) {
           try {
-            const did = ph.get_distinct_id();
-            event.tags = Object.assign({}, event.tags, { posthog_session: ph.get_session_id() });
+            const did = PH().get_distinct_id();
+            event.tags = Object.assign({}, event.tags, { posthog_session: PH().get_session_id() });
             event.contexts = Object.assign({}, event.contexts, {
               posthog: {
-                replay: ph.get_session_replay_url({ withTimestamp: true, timestampLookBack: 30 }),
+                replay: PH().get_session_replay_url({ withTimestamp: true, timestampLookBack: 30 }),
                 person: PH_UI + "/project/" + PH_PROJECT + "/person/" + encodeURIComponent(did)
               }
             });
@@ -94,11 +96,11 @@
   function flush() {
     if (!phReady()) return;
     const u = state.user;
-    if (u && sent.user !== u.id) { sent.user = u.id; ph.identify(u.id, u.props); }
+    if (u && sent.user !== u.id) { sent.user = u.id; PH().identify(u.id, u.props); }
     const pk = state.player ? JSON.stringify(state.player) : "";
-    if (pk && sent.player !== pk) { sent.player = pk; ph.setPersonProperties(state.player); ph.register({ nickname: state.player.nickname }); }
+    if (pk && sent.player !== pk) { sent.player = pk; PH().setPersonProperties(state.player); PH().register({ nickname: state.player.nickname }); }
     const mk = state.match ? JSON.stringify(state.match) : "";
-    if (sent.match !== mk) { sent.match = mk; if (state.match) ph.register(state.match); else MATCH_KEYS.forEach((k) => ph.unregister(k)); }
+    if (sent.match !== mk) { sent.match = mk; if (state.match) PH().register(state.match); else MATCH_KEYS.forEach((k) => PH().unregister(k)); }
   }
 
   // Signed-in account (Supabase user).
@@ -113,7 +115,7 @@
   api.signOut = safe(() => {
     if (!state.user) return;
     state.user = null; state.player = null; state.match = null; sent.user = sent.player = sent.match = "";
-    if (phReady()) ph.reset();
+    if (phReady()) PH().reset();
     if (S) S.setUser(null);
   });
 
@@ -144,6 +146,6 @@
     if (name === "vital" || name === "page_view") return; // PostHog measures these itself
     if (name === "api_error" && S) S.captureMessage(props && props.msg ? props.msg : "Game server error", { level: "error", tags: { rpc: props && props.src } });
     if (name === "error") return; // Sentry captures these with full stack traces
-    if (ph) ph.capture(name, props || {});
+    if (PH()) PH().capture(name, props || {});
   });
 })();

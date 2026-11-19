@@ -1719,6 +1719,7 @@ function applyLive(s, mine) {
   if (view !== "play") {
     onlineSearch = null;
     live.fresh = -1; enterPlay(); gameT0 = reconnecting ? Math.min(s.starts || Date.now(), Date.now()) : Date.now();
+    if (s.status === "active") tickClock();
     observe("match", { id: live.id, mode: s.rated ? "ranked" : s.opp.bot ? "bot" : "friend", target: s.target, opponent: s.opp.name, opponentBot: !!s.opp.bot });
     if (reconnecting) {
       if (s.status === "active") toast("Reconnected to the race", "");

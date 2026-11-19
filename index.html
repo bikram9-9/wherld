@@ -221,6 +221,9 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 .clues .k { font-family: var(--font-type); font-size: 12.5px; line-height: 1.15; }
 .clues .v { font-weight: 600; font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
 .clues li.locked .n, .clues li.locked .k { opacity: 0.55; }
+.reveal { justify-self: start; border: 1.5px solid var(--paper-ink); background: var(--doodle); color: var(--paper-ink); font-weight: 700; font-size: 13px; border-radius: 6px; padding: 3px 10px; box-shadow: 0 2px 0 var(--paper-ink); cursor: pointer; }
+.reveal:hover { background: #efbd6a; } .reveal:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--paper-ink); }
+.reveal:disabled { opacity: 0.55; cursor: progress; }
 .redact i { display: block; height: 12px; background: var(--paper-ink); border-radius: 2px; }
 .clues li.fresh .v { animation: reveal 0.5s ease-out; }
 @keyframes reveal { from { background: var(--paper-ink); color: transparent; } to { background: transparent; } }
@@ -229,7 +232,7 @@ main.stage { position: relative; display: flex; flex-direction: column; align-it
 .swatches span { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; }
 .swatches i { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--paper-ink); }
 #shape { width: 92px; height: 62px; display: block; }
-.locknote { display: none; margin: 0; padding: 6px 0 8px; font-family: var(--font-type); font-size: 13px; opacity: 0.75; }
+.locknote { display: block; margin: 0; padding: 8px 0; font-size: 13px; line-height: 1.35; color: #47525e; }
 .verdict { margin: 2px 0 8px; padding: 10px 0 4px; border-top: 2px solid var(--paper-ink); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
 .verdict p { margin: 0; }
 .verdict #scoreline, .verdict .row, .verdict #sharebox, .verdict #gains { flex-basis: 100%; }
@@ -378,6 +381,7 @@ body[data-live="1"] { --chrome: 268px; }
   .dock-clues { background: var(--paper); color: var(--paper-ink); border: 2px solid var(--paper-ink); box-shadow: 0 3px 0 #b9aa87; }
   .dock-clues b { background: var(--paper-ink); color: var(--paper); border-radius: 999px; padding: 1px 8px; font-size: 13px; margin-left: 4px; }
   .dock-clues.ping { animation: dock-ping 0.9s ease 2; }
+  .dock-clues.result { background: var(--doodle); animation: dock-ping 0.9s ease 2; }
   @keyframes dock-ping { 0%, 100% { transform: none; } 30% { transform: translateY(-6px) scale(1.04); box-shadow: 0 0 0 4px rgba(227,173,85,0.6); } }
   .dock-hint { background: transparent; color: var(--doodle); border: 2px solid var(--doodle); }
   .dock-hint:disabled { opacity: 0.45; }
@@ -604,8 +608,8 @@ body[data-live="1"] { --chrome: 268px; }
         </div>
         <div class="howto-step" data-step hidden>
           <h2>Clues help you sniff</h2>
-          <p>You get <b>6 guesses</b> and three clues in the case file: <b>population</b> from the start, <b>flag colors</b> after 2 misses, and <b>continent</b> after 4.</p>
-          <p class="howto-tip">Stuck? A <b>trail hint</b> drops Pi's paw print near his hiding spot. You get 3 free every day.</p>
+          <p>You get <b>6 guesses</b>. The case file holds three clues: <b>population</b>, <b>flag colors</b> and <b>continent</b>. They stay hidden until you tap <b>Reveal</b>.</p>
+          <p class="howto-tip">Revealing a clue or using a <b>trail hint</b> (Pi's paw print near his hiding spot) uses one hint. You get <b>3 free hints every day</b>; after that each costs 20 treats.</p>
         </div>
         <div class="howto-step" data-step data-race hidden>
           <h2>Racing a rival</h2>
@@ -785,9 +789,9 @@ const MICRO = [
 ];
 const SKIP = new Set(["010", "260"]);
 const MAX_GUESSES = 6;
-// Three clues only, always in this order. Population shows at the start; each later clue unlocks after more misses.
+// Three clues only, always in this order. Every clue stays hidden until the player taps Reveal,
+// which uses a hint (3 free a day, then 20 treats), the same allowance as the trail hint.
 const CLUE_LABELS = ["Population", "Flag colors", "Continent"];
-const cluesShown = (misses) => 1 + (misses >= 2) + (misses >= 4);
 const EPOCH = new Date(2026, 10, 16); // daily case #1
 
 /* ---------- Server (Supabase). The key below is the public one, safe to ship. ---------- */
@@ -1086,7 +1090,7 @@ function model() {
   }
   if (view === "play" && solo) {
     const blitz = solo.mode === "blitz", won = solo.guesses.includes(solo.answer), roundOver = won || solo.guesses.length >= MAX_GUESSES;
-    const done = blitz ? !!solo.over : roundOver, shown = done && !blitz ? 3 : cluesShown(solo.guesses.length);
+    const done = blitz ? !!solo.over : roundOver, shown = done && !blitz ? 3 : Math.min(3, solo.revealed || 0);
     return { kind: solo.mode, labels: solo.mode === "city" ? CITY_LABELS : CLUE_LABELS,
       guesses: solo.guesses.map((k) => ({ key: k, d: distance(k, solo.answer), b: bearing(k, solo.answer), ok: k === solo.answer, adj: k !== solo.answer && borders(k, solo.answer) })),
       clues: blitz && solo.over ? [] : soloClues().slice(0, shown), done, won, answer: done && !blitz ? solo.answer : null,
@@ -1101,14 +1105,14 @@ function dailyAnswer(day) {
   const n = answerPool.length;
   return answerPool[(((day * 37 + 11 + 17 * Math.floor(day / n)) % n) + n) % n];
 }
-function saveDaily() { store.set("sd-daily", { day: solo.day, guesses: solo.guesses, hint: solo.hint, t0: solo.t0, sent: solo.sent, extra: solo.extra }); }
+function saveDaily() { store.set("sd-daily", { day: solo.day, guesses: solo.guesses, hint: solo.hint, revealed: solo.revealed || 0, t0: solo.t0, sent: solo.sent, extra: solo.extra }); }
 function startSolo(mode, opt) {
   stopPolling(); live = null;
   const prev = solo ? solo.answer : null;
   if (mode === "daily") {
     const day = todayIndex(), saved = store.get("sd-daily"), same = !!saved && saved.day === day;
     solo = { mode, day, answer: dailyAnswer(day), guesses: same ? saved.guesses.filter((k) => byKey.has(k)) : [], fresh: -1,
-      hint: same ? saved.hint || null : null, t0: same && saved.t0 ? saved.t0 : Date.now(), sent: same && !!saved.sent, extra: same ? saved.extra || null : null };
+      hint: same ? saved.hint || null : null, revealed: same ? saved.revealed || 0 : 0, t0: same && saved.t0 ? saved.t0 : Date.now(), sent: same && !!saved.sent, extra: same ? saved.extra || null : null };
     saveDaily();
     if (profile && online && !solo.sent) rpc("wh_daily_start", { p_token: token(), p_day: day }).catch(() => {});
   } else if (mode === "city") {
@@ -1162,7 +1166,7 @@ function blitzNext(found) {
   sfx(found ? "found" : "missed");
   buddy(found ? "bark" : "whimper", found ? "Found me! That's " + solo.score + "." : "I was in " + was + "!");
   $("msg").textContent = (found ? "Found Pi in " : "Pi was in ") + was + ". Next country.";
-  solo.answer = pick(answerPool, solo.answer); solo.guesses = []; solo.fresh = -1; pulseKey = null;
+  solo.answer = pick(answerPool, solo.answer); solo.guesses = []; solo.fresh = -1; solo.revealed = 0; pulseKey = null;
 }
 async function endBlitz() {
   if (!solo || solo.mode !== "blitz" || solo.over) return;
@@ -1191,6 +1195,20 @@ async function useHint() {
   buddy("wag", "I left a paw print!"); sfx("hint");
   $("msg").textContent = "Pi's paw print is within 700 miles of the hiding spot.";
   flyTo(solo.hint); render();
+}
+
+/* ---------- Clue reveals: only when the player asks; each uses a hint ---------- */
+let revealing = false;
+async function revealClue() {
+  if (revealing || M.done) return;
+  if (!profile) { $("msg").textContent = "Pick a nickname on the home page first. You get 3 free hints every day."; return; }
+  revealing = true; render();
+  try {
+    if (live) { const s = await rpc("wh_reveal", { p_token: token(), p_match: live.id }); applyLive(s, false); live.fresh = (s.clues || []).length - 1; }
+    else { profile = await rpc("wh_hint", { p_token: token() }); solo.revealed = (solo.revealed || 0) + 1; solo.fresh = solo.revealed - 1; if (solo.mode === "daily") saveDaily(); }
+    track("hint", { mode: M.kind, type: "clue" }); sfx("hint");
+  } catch (e) { $("msg").textContent = e.message + (/treats/.test(e.message) ? " Get more in the Shop." : ""); }
+  finally { revealing = false; render(); }
 }
 
 /* ---------- Pi's reactions and guess feedback ---------- */
@@ -1249,7 +1267,7 @@ async function submit(key) {
   if (solo.mode === "daily") saveDaily();
   if (solo.mode === "blitz") {
     if (found || out) blitzNext(found);
-    else { solo.fresh = solo.guesses.length; feedback(before, model()); }
+    else { solo.fresh = -1; feedback(before, model()); }
     render(); return;
   }
   if (found || out) {
@@ -1259,7 +1277,7 @@ async function submit(key) {
     flyTo(byKey.get(solo.answer).center);
     track("game_end", { mode: solo.mode, won: found, guesses: solo.guesses.length, ms: Date.now() - gameT0, hint: !!solo.hint });
     if (solo.mode === "daily") finishDaily(found);
-  } else { solo.fresh = solo.guesses.length; feedback(before, model()); }
+  } else { solo.fresh = -1; feedback(before, model()); }
   render();
 }
 
@@ -1742,6 +1760,7 @@ function render() {
 
   // case file
   $("caseno").textContent = isLive ? (live.s.status === "done" ? "Race to " + live.s.target : "Country " + ((live.s.round || 0) + 1) + " · race to " + live.s.target) : M.kind === "daily" ? "Daily No. " + (solo.day + 1) : M.kind === "city" ? "City hunt" : isBlitz ? "Blitz" : "Practice round";
+  const canReveal = !M.done && M.kind !== "none" && !(isLive && !M.started) && !(isBlitz && solo.over);
   const ol = $("clues"); ol.textContent = "";
   M.labels.forEach((label, i) => {
     const li = document.createElement("li");
@@ -1757,6 +1776,12 @@ function render() {
       else v.textContent = val;
       if (i === M.fresh) li.classList.add("fresh");
       li.append(v);
+    } else if (i === M.clues.length && canReveal) {
+      const b = document.createElement("button"); b.type = "button"; b.className = "reveal";
+      b.textContent = !profile ? "Reveal" : profile.hintsFree > 0 ? "Reveal · free" : "Reveal · " + (profile.hintPrice || 20) + " treats";
+      b.setAttribute("aria-label", "Reveal the " + label.toLowerCase() + " clue. Uses one hint.");
+      b.disabled = revealing || !online; b.addEventListener("click", revealClue);
+      li.append(b);
     } else {
       li.classList.add("locked");
       const r = document.createElement("div"); r.className = "redact";
@@ -1766,9 +1791,12 @@ function render() {
     ol.append(li);
   });
   const sh = M.clues.find((v) => /^(key|shape):/.test(v)); if (sh) drawShape(sh);
-  const locked = M.labels.length - M.clues.length, made = M.guesses.length, nextAt = made < 2 ? 2 : 4;
-  $("locknote").hidden = locked === 0 || M.done;
-  $("locknote").textContent = isLive && !M.started ? "Clues open when the clock starts." : locked + (locked === 1 ? " more clue" : " more clues") + " locked. The next one opens after " + (nextAt - made) + (nextAt - made === 1 ? " more miss." : " more misses.");
+  // Hint budget, always in plain sight: 3 free a day, then treats.
+  $("locknote").hidden = M.done;
+  $("locknote").textContent = isLive && !M.started ? "Clues stay hidden until you tap Reveal."
+    : !profile ? "💡 Hints: 3 free every day. Pick a nickname on the home page to use them."
+    : profile.hintsFree > 0 ? "💡 " + profile.hintsFree + " of 3 free hints left today. Clues stay hidden until you tap Reveal."
+    : "💡 Today's 3 free hints are used. Each hint now costs " + (profile.hintPrice || 20) + " treats (you have " + profile.coins + ").";
 
   // guesses
   const gl = $("glist"); gl.textContent = "";
@@ -1802,10 +1830,10 @@ function render() {
   // phone dock: same hint button, plus the clue count that opens the case file
   $("dock-hint").hidden = $("hint").hidden; $("dock-hint").disabled = $("hint").disabled;
   $("dock-hint").textContent = M.hint ? "Trail used" : profile && profile.hintsFree > 0 ? "Hint · " + profile.hintsFree + " free" : "Hint · " + ((profile && profile.hintPrice) || 20) + " treats";
-  $("dock-n").textContent = M.done ? "Result" : (isLive && !M.started ? 0 : M.clues.length) + "/" + M.labels.length;
+  $("dock-n").textContent = M.done ? "See result" : (isLive && !M.started ? 0 : M.clues.length) + "/" + M.labels.length;
   if (M.fresh < 0) lastPing = -1;
   if (M.fresh >= 0 && M.fresh !== lastPing) { lastPing = M.fresh; const d = $("dock-clues"); d.classList.remove("ping"); void d.offsetWidth; d.classList.add("ping"); }
-  if (M.done && !wasDone && window.matchMedia("(max-width: 900px)").matches) setTimeout(() => openSheet(true), 1400);
+  $("dock-clues").classList.toggle("result", M.done);
   wasDone = M.done;
 
   // verdict

@@ -839,6 +839,8 @@ const piImg = new Image(); piImg.onload = () => { dirty = true; };
 /* ---------- City hunt data: [city, country, lat, lon, metro size, continent, time zone, main language] ---------- */
 const CITY_POP = { a: "Under 2 million", b: "2 to 5 million", c: "5 to 10 million", d: "10 to 20 million", e: "Over 20 million" };
 const CITY_LABELS = ["Metro size", "Flag colors", "Continent"];
+// Flag colors for City hunt countries that aren't in the country game.
+const EXTRA_FLAGS = { "United Arab Emirates": "green white black red", "Cuba": "blue white red", "Singapore": "red white" };
 const CITIES = [
   ["Tokyo", "Japan", 35.68, 139.69, "e", AS, "UTC+9", "Japanese"], ["Delhi", "India", 28.61, 77.21, "e", AS, "UTC+5:30", "Hindi"],
   ["Shanghai", "China", 31.23, 121.47, "e", AS, "UTC+8", "Mandarin Chinese"], ["São Paulo", "Brazil", -23.55, -46.63, "e", SA, "UTC-3", "Portuguese"],
@@ -1072,7 +1074,7 @@ const fmt = (t) => Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
 /* ---------- One model for the screen, whichever mode is running ---------- */
 const serverNow = () => Date.now() + (live ? live.skew : 0);
 function soloClues() {
-  if (solo.mode === "city") { const c = byKey.get(solo.answer).city, k = nameToKey.get(c[1]); return [CITY_POP[c[4]], "flag:" + ((CASES[k] && CASES[k][4]) || ""), c[5]]; }
+  if (solo.mode === "city") { const c = byKey.get(solo.answer).city, k = nameToKey.get(c[1]); return [CITY_POP[c[4]], "flag:" + ((CASES[k] && CASES[k][4]) || EXTRA_FLAGS[c[1]] || ""), c[5]]; }
   const d = CASES[solo.answer];
   return [POP[d[0]], "flag:" + d[4], d[1]];
 }

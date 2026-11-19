@@ -605,11 +605,11 @@ body[data-live="1"] { --chrome: 268px; }
         </div>
         <div class="howto-step" data-step hidden>
           <h2>Warmer means closer</h2>
-          <p>Each guess lights up on the globe. <b class="hot">Red</b> is close to Pi, <b class="cold">blue</b> is far. The arrow points the way to Pi.</p>
+          <p>Each guess lights up on the globe. <b class="hot">Red</b> is close to Pi, <b class="cold">blue</b> is far.</p>
           <div class="demo-chips" aria-hidden="true">
-            <span><i style="background:#2b4fb8"></i>Brazil <small>6,140 mi</small> ↗</span>
-            <span><i style="background:#ffada3"></i>Spain <small>1,320 mi</small> →</span>
-            <span><i style="background:#c20d1a"></i>Greece <small>310 mi</small> ↘</span>
+            <span><i style="background:#2b4fb8"></i>Brazil <small>6,140 mi</small></span>
+            <span><i style="background:#ffada3"></i>Spain <small>1,320 mi</small></span>
+            <span><i style="background:#c20d1a"></i>Greece <small>310 mi</small></span>
           </div>
           <div class="demo-legend" aria-hidden="true"><span>far</span><i></i><span>close</span></div>
         </div>
@@ -913,8 +913,6 @@ const todayIndex = () => { const n = new Date(); return Math.round((new Date(n.g
 const coldRamp = d3.interpolateRgb("#0a2a8f", "#9fc3ff"), warmRamp = d3.interpolateRgb("#ffada3", "#c20d1a");
 const heat = (t) => t < 0.5 ? coldRamp(t * 2) : warmRamp((t - 0.5) * 2);
 const heatFor = (mi) => heat(1 - Math.min(mi, 8000) / 8000);
-const ARROWS = ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"];
-const arrow = (deg) => ARROWS[Math.round(deg / 45) % 8];
 const miles = (d) => Math.round(d).toLocaleString("en-US") + " mi";
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -1265,7 +1263,7 @@ function feedback(before, after) {
   sfx(mood === "bark" ? "close" : mood === "wag" ? "warmer" : mood === "whimper" ? "colder" : "neutral");
   const m = $("msg"); m.textContent = "";
   if (g.adj) { const a = document.createElement("b"); a.className = "adj-note"; a.textContent = "🐾 Adjacent! " + cty.name + " borders Pi's country. "; m.append(a); }
-  else m.append(cty.name + " is " + miles(g.d) + " from Pi " + arrow(g.b) + " ");
+  else m.append("Pi is " + miles(g.d) + " away from " + cty.name + ". ");
   if (after.clues.length > before.clues.length) {
     const i = after.clues.length - 1, b = document.createElement("b");
     b.textContent = after.labels[i] + ": " + clueText(after.clues[i]);
@@ -1852,8 +1850,8 @@ function render() {
     const dot = document.createElement("span"); dot.className = "dot"; dot.style.background = x.ok ? "#3fae6b" : heatFor(x.d);
     const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = cty.short || cty.name;
     const ds = document.createElement("span"); ds.className = "ds"; ds.textContent = x.ok ? "found" : x.adj ? "borders · " + miles(x.d) : miles(x.d); if (x.adj) ds.classList.add("adj");
-    const ar = document.createElement("span"); ar.className = "ar"; ar.textContent = x.ok ? "✓" : arrow(x.b);
-    b.append(dot, nm, ds, ar); b.addEventListener("click", () => flyTo(cty.center));
+    b.append(dot, nm, ds);
+    if (x.ok) { const ar = document.createElement("span"); ar.className = "ar"; ar.textContent = "✓"; b.append(ar); } b.addEventListener("click", () => flyTo(cty.center));
     li.append(b); gl.append(li);
   });
   const out = M.guesses.length >= MAX_GUESSES;

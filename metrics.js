@@ -1,6 +1,6 @@
 /* Where's Pi metrics: anonymous, cookie-free usage stats, error reports and page-speed timings.
-   Events go to our own Supabase project (table analytics_events), batched every few seconds.
-   No cookies, no third parties. A random visitor id lives in localStorage ("pi-vid") so repeat
+   Events go to our own Supabase project (table analytics_events), batched every few seconds, and are
+   also forwarded to PostHog / Sentry through observe.js. No cookies. A random visitor id lives in localStorage ("pi-vid") so repeat
    visits can be counted; clearing site data resets it. Global Privacy Control / Do Not Track
    turn off usage stats (error reports, which hold no personal data, still go). */
 (function () {
@@ -49,6 +49,7 @@
     if (optedOut && name !== "error" && name !== "api_error") return;
     const p = {};
     for (const [k, v] of Object.entries(props || {})) if (v !== undefined && v !== null) p[k] = typeof v === "string" ? v.slice(0, 300) : v;
+    try { if (window.piObserve) window.piObserve.event(name, p); } catch (e) { /* PostHog / Sentry, see observe.js */ }
     queue.push({ name, vid, sid, path: path(), ref: ref || null, device, browser, os, lang: (navigator.language || "").slice(0, 20) || null, tz, props: p });
     if (queue.length >= 20) send(); else if (!timer) timer = setTimeout(send, 4000);
   }

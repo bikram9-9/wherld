@@ -503,7 +503,7 @@ body[data-live="1"] { --chrome: 268px; }
           <button type="button" class="textlink" id="au-forgot">Forgot password?</button>
         </div>
         <div id="au-in" hidden style="display:contents">
-          <p id="au-who" style="text-align:center;overflow-wrap:anywhere"></p>
+          <p id="au-who" class="ph-mask" style="text-align:center;overflow-wrap:anywhere"></p>
           <button type="button" class="btn" id="au-rename">Change nickname</button>
           <button type="button" class="btn" id="au-mfa">Turn on two-step sign-in</button>
           <button type="button" class="btn" id="au-signout">Sign out</button>
@@ -525,7 +525,7 @@ body[data-live="1"] { --chrome: 268px; }
         <p class="note" id="mfa-err" hidden></p>
         <button type="button" class="btn" id="mfa-signout">Sign out</button>
       </form>
-      <form id="lb-mfasetup" hidden style="display:contents">
+      <form id="lb-mfasetup" class="ph-no-capture" hidden style="display:contents">
         <p class="flyer-kicker">Set up two-step</p>
         <p>Scan this with an authenticator app, then enter the code it shows.</p>
         <img id="mfa-qr" alt="QR code for your authenticator app" width="170" height="170" style="align-self:center;background:#fff;padding:6px;border:1.5px solid var(--paper-ink)">
@@ -646,6 +646,8 @@ body[data-live="1"] { --chrome: 268px; }
   </main>
 </div>
 
+<script src="https://browser.sentry-cdn.com/11.14.0/bundle.min.js" integrity="sha384-jCAqT6eX+TSYGAhAPoGRdVSau37cLPr0E7njTbruV95FY3W1LVq5TAi+/QIwOIy5" crossorigin="anonymous"></script>
+<script src="observe.js"></script>
 <script src="metrics.js"></script>
 <script src="pi.js"></script>
 <script src="sound.js"></script>
@@ -809,6 +811,9 @@ if (window.piTrack) window.piTrack.setAuth(bearer);
 let gameT0 = 0;
 let hadSession = false; try { hadSession = Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k)); } catch (e) { /* no storage */ }
 if (sb) sb.auth.onAuthStateChange((ev, s) => { if (ev === "SIGNED_OUT") hadSession = false; if (ev === "SIGNED_IN" && s && !hadSession) { hadSession = true; try { if (sessionStorage.getItem("pi-signed") === s.user.id) return; sessionStorage.setItem("pi-signed", s.user.id); } catch (e) { /* ok */ } track("sign_in", { method: (s.user.app_metadata && s.user.app_metadata.provider) || "email" }); } });
+/* Observability (see observe.js): tie PostHog and Sentry to the signed-in account. */
+const observe = (fn, ...a) => { try { if (window.piObserve) window.piObserve[fn](...a); } catch (e) { /* never break the game */ } };
+if (sb) sb.auth.onAuthStateChange((ev, s) => { if (ev === "SIGNED_OUT") observe("signOut"); else if (s && s.user) observe("identify", s.user); });
 if (sb) sb.auth.onAuthStateChange((ev) => { if (ev === "PASSWORD_RECOVERY") { recovering = true; if (typeof render === "function" && countries.length) { view = "home"; lobby = "newpass"; render(); } } });
 async function bearer() {
   if (!sb) return SB_KEY;
@@ -1583,6 +1588,7 @@ function applyLive(s, mine) {
   if (s.status === "waiting") { render(); return; }
   if (view !== "play") {
     live.fresh = -1; enterPlay(); gameT0 = Date.now();
+    observe("match", { id: live.id, mode: s.rated ? "ranked" : s.opp.bot ? "bot" : "friend", target: s.target, opponent: s.opp.name, opponentBot: !!s.opp.bot });
     track("game_start", { mode: s.rated ? "ranked" : s.opp.bot ? "bot" : "friend", target: s.target });
     toast((s.rated ? "Rival found: " : s.opp.bot ? "Practice rival: " : "Your friend is here: ") + s.opp.name, "");
   }
@@ -1595,6 +1601,7 @@ function applyLive(s, mine) {
       stopPolling(); live.fresh = -1;
       const w = s.result.winner;
       track("game_end", { mode: s.rated ? "ranked" : s.opp && s.opp.bot ? "bot" : "friend", won: w === "me", result: w, target: s.target, found: s.result.found, opp_found: s.result.oppFound, ms: Date.now() - gameT0 });
+      observe("match", null);
       toast(w === "me" ? "Victory" : w === "opp" ? "Defeat" : "Draw", w === "me" ? "good" : w === "opp" ? "colder" : "");
       sfx(w === "me" ? "win" : w === "opp" ? "lose" : "neutral");
       buddy(w === "me" ? "bark" : "whimper", w === "me" ? "You won the race!" : w === "opp" ? "Next race is yours!" : "A tie!");
@@ -1710,6 +1717,8 @@ function openSheet(open) {
 
 /* ---------- Rendering ---------- */
 function render() {
+  observe("player", profile);
+  if (!live || view !== "play") observe("match", null);
   M = model();
   document.body.dataset.view = view;
   const isLive = M.kind === "live", isBlitz = M.kind === "blitz";

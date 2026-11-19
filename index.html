@@ -315,7 +315,9 @@ body[data-view="home"] { --chrome: 96px; }
 body[data-live="1"] { --chrome: 268px; }
 
 .dock, .sheet-x, .sheet-bd { display: none; }
-.howto { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgba(5, 10, 15, 0.72); }
+.howto { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0; padding: 16px; background: transparent; }
+.howto[open] { display: grid; place-items: center; }
+.howto::backdrop { background: rgba(5, 10, 15, 0.72); }
 .howto-card { position: relative; width: min(380px, 100%); background: var(--paper); color: var(--paper-ink); padding: 18px 22px 16px; border-radius: 3px; box-shadow: 0 24px 50px rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 12px; }
 .howto-card::before, .howto-card::after { content: ""; position: absolute; top: -10px; width: 70px; height: 22px; background: rgba(240, 214, 140, 0.72); }
 .howto-card::before { left: -14px; transform: rotate(-30deg); } .howto-card::after { right: -14px; transform: rotate(28deg); }
@@ -602,12 +604,12 @@ body[data-live="1"] { --chrome: 268px; }
      </div>
     </section>
 
-    <div class="howto" id="howto" hidden role="dialog" aria-modal="true" aria-labelledby="howto-title">
+    <dialog class="howto" id="howto" aria-labelledby="howto-title">
       <div class="howto-card">
-        <p class="flyer-kicker">How to play</p>
+        <p class="flyer-kicker" id="howto-title">How to play</p>
         <div class="howto-step" data-step>
           <div class="howto-pi" data-pi aria-hidden="true"></div>
-          <h2 id="howto-title">Find Pi</h2>
+          <h2>Find Pi</h2>
           <p>Pi, a goldendoodle, is hiding in a mystery country. <b>Type any country</b> in the box and press <b>Guess</b>.</p>
           <div class="demo-input" aria-hidden="true"><span class="demo-field">Bra<i></i></span><span class="demo-btn">Guess</span></div>
         </div>
@@ -632,7 +634,7 @@ body[data-live="1"] { --chrome: 268px; }
         </div>
         <div class="howto-nav"><span class="howto-dots" id="howto-dots"></span><button type="button" class="link" id="howto-skip">Skip</button><button type="button" class="btn primary" id="howto-next">Next</button></div>
       </div>
-    </div>
+    </dialog>
     <div class="sheet-bd" id="sheet-bd" aria-hidden="true"></div>
     <div class="casefile" id="casefile">
       <button type="button" class="sheet-x" id="sheet-x" aria-label="Close clues">Close</button>
@@ -1153,7 +1155,8 @@ function startSolo(mode, opt) {
 }
 function enterPlay() {
   view = "play"; pulseKey = null; spinning = false; openSheet(false); wasDone = false;
-  $("msg").textContent = ""; $("sharebox").hidden = true; $("guess").value = ""; $("buddy").className = "buddy";
+  clearFeedback();
+  $("sharebox").hidden = true; $("guess").value = "";
   render();
   if (M.done && M.answer) flyTo(byKey.get(M.answer).center);
 }
@@ -1162,6 +1165,7 @@ function goHome() {
   if (live && live.s && live.s.status === "active") { askResign(); return; }
   onlineSearch = null;
   view = "home"; lobby = "menu"; stopPolling(); live = null; solo = null;
+  clearFeedback();
   zoomTarget = 1; spinning = !reduceMotion;
   render(); loadBoard();
 }
@@ -1190,7 +1194,7 @@ function blitzNext(found) {
   if (solo.mode === "practice" && solo.score >= solo.target) { endPractice(was); return; }
   const togo = solo.mode === "practice" ? solo.target - solo.score : 0;
   buddy(found ? "bark" : "whimper", found ? (togo ? "Found me! " + togo + " to go." : "Found me! That's " + solo.score + ".") : "I was in " + was + "!");
-  $("msg").textContent = (found ? "Found Pi in " : "Pi was in ") + was + "." + (found || solo.mode !== "practice" ? "" : " Skipped, it doesn't count.") + " Next country.";
+  roundMessage((found ? "Found Pi in " : "Pi was in ") + was + "." + (found || solo.mode !== "practice" ? "" : " Skipped, it doesn't count.") + " Next country.");
   solo.answer = pick(answerPool, solo.answer); solo.guesses = []; solo.fresh = -1; solo.revealed = 0; solo.hint = null; pulseKey = null;
 }
 // Practice ends when Pi has been found in every country the player picked. Best times stay on this device.
@@ -1250,6 +1254,17 @@ async function revealClue() {
 
 /* ---------- Pi's reactions and guess feedback ---------- */
 let toastTimer = null, buddyTimer = null;
+const REACTION_MS = 2800;
+function clearFeedback() {
+  clearTimeout(toastTimer); clearTimeout(buddyTimer);
+  $("msg").textContent = ""; $("bubble").textContent = ""; $("toast").textContent = "";
+  $("buddy").className = "buddy"; $("toast").className = "toast";
+}
+function roundMessage(text) {
+  const msg = $("msg"), notice = document.createTextNode(text);
+  msg.replaceChildren(notice);
+  setTimeout(() => { if (notice.parentNode === msg) notice.remove(); }, REACTION_MS);
+}
 function toast(text, cls) {
   const t = $("toast"); clearTimeout(toastTimer);
   t.textContent = text; t.className = "toast show " + (cls || "");
@@ -1259,7 +1274,7 @@ function buddy(mood, text) {
   const b = $("buddy"); clearTimeout(buddyTimer);
   b.className = "buddy"; void b.offsetWidth;
   $("bubble").textContent = text; b.className = "buddy talk " + mood;
-  buddyTimer = setTimeout(() => { b.className = "buddy"; }, 2800);
+  buddyTimer = setTimeout(() => { b.className = "buddy"; $("bubble").textContent = ""; }, REACTION_MS);
 }
 function clueText(v) { return v.startsWith("flag:") ? v.slice(5).split(" ").map((c) => SWATCH_NAME[c] || c).join(", ") : /^(key|shape):/.test(v) ? "see the case file" : v; }
 function feedback(before, after) {
@@ -1292,9 +1307,12 @@ async function submit(key) {
   $("guess").value = "";
   if (live) {
     if (!M.started) { $("msg").textContent = "Wait for the countdown."; return; }
+    const match = live;
     pending = true;
-    try { applyLive(await rpc("wh_guess", { p_token: token(), p_match: live.id, p_country: key }), true); }
-    catch (e) { $("msg").textContent = e.message; }
+    try {
+      const s = await rpc("wh_guess", { p_token: token(), p_match: match.id, p_country: key });
+      if (live === match) applyLive(s, true);
+    } catch (e) { if (live === match) $("msg").textContent = e.message; }
     finally { pending = false; }
     return;
   }
@@ -1407,6 +1425,7 @@ async function saveNewPassword() {
 async function signOut() {
   onlineSearch = null;
   stopPolling(); live = null;
+  store.set("wh-friend-race", null);
   try { await sb.auth.signOut(); } catch (e) { /* already signed out */ }
   session = null; profile = null; mfaOn = false; view = "home"; lobby = "menu"; solo = null;
   render();
@@ -1445,7 +1464,7 @@ async function mfaVerifyLogin() {
     if (!f) return authError("mfa-err", "No authenticator is set up on this account.");
     const { error } = await sb.auth.mfa.challengeAndVerify({ factorId: f.id, code });
     if (error) return authError("mfa-err", "That code didn't match. Try the newest one.");
-    authError("mfa-err", ""); await syncAccount();
+    authError("mfa-err", ""); await syncAccount(); openFriendRace(challengeCode());
   } catch (e) { authError("mfa-err", "Can't reach the sign-in service. Check your connection."); }
 }
 const boards = { ranked: null, today: null, blitz1: null, blitz3: null, blitz5: null };
@@ -1552,14 +1571,37 @@ function paintPi() {
   l.href = piImg.src;
 }
 
-let pollTimer = null, clockTimer = null, searchStart = 0, busy = false, joining = false, challengeLink = "", lobbyNote = "";
+let pollTimer = null, clockTimer = null, searchStart = 0, joining = false, challengeLink = "", lobbyNote = "";
 let onlineSearch = null;
 function stopPolling() { clearInterval(pollTimer); clearInterval(clockTimer); pollTimer = clockTimer = null; }
-function watch(id, state) {
-  live = { id, s: null, skew: 0, fresh: -1 };
+function watch(id, { state = null, friend = null, reconnecting = false } = {}) {
+  live = { id, s: null, skew: 0, fresh: -1, friend, reconnecting, polling: false };
+  if (friend) store.set("wh-friend-race", friend);
   stopPolling();
   pollTimer = setInterval(poll, 1500); clockTimer = setInterval(tickClock, 250);
   if (state) applyLive(state, false); else poll();
+}
+function challengeCode() {
+  return (/^#c-([a-z0-9]{6,12})$/i.exec(location.hash) || [])[1]?.toLowerCase();
+}
+function inviteLink(code) { return location.origin + location.pathname + "#c-" + code; }
+function clearChallengeHash(code) {
+  if (challengeCode() !== code) return;
+  try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* hash stays */ }
+}
+function clearFriendRace(id) {
+  if (store.get("wh-friend-race")?.id === id) store.set("wh-friend-race", null);
+}
+function openFriendRace(code) {
+  if (live || lobby === "mfa" || lobby === "newpass") return;
+  const saved = store.get("wh-friend-race");
+  if (saved && (profile || session || token()) && (!code || saved.code === code)) {
+    view = "home"; lobby = saved.host ? "challenge" : "searching";
+    solo = null; joining = true; searchStart = Date.now(); lobbyNote = "";
+    if (saved.host) { raceTarget = saved.target; challengeLink = inviteLink(saved.code); }
+    watch(saved.id, { friend: saved, reconnecting: true });
+    render();
+  } else if (code) needProfile(() => firstTime(() => joinChallenge(code), true));
 }
 async function startSearch() {
   stopPolling();
@@ -1589,7 +1631,7 @@ async function playBot() {
     const { match } = await search.request;
     if (onlineSearch !== search || view !== "home" || lobby !== "searching") return;
     const state = await rpc("wh_play_bot", { p_token: token(), p_match: match });
-    if (onlineSearch === search && view === "home" && lobby === "searching") watch(match, state);
+    if (onlineSearch === search && view === "home" && lobby === "searching") watch(match, { state });
   } catch (e) {
     if (onlineSearch === search && view === "home" && lobby === "searching") lobbyNote = e.message;
   } finally {
@@ -1602,8 +1644,8 @@ async function startChallenge() {
   track("challenge_create");
   try {
     const r = await rpc("wh_challenge_create", { p_token: token(), p_target: raceTarget });
-    challengeLink = location.origin + location.pathname + "#c-" + r.code;
-    watch(r.match);
+    challengeLink = inviteLink(r.code);
+    watch(r.match, { friend: { id: r.match, code: r.code, target: r.target || raceTarget, host: true } });
   } catch (e) { lobby = "menu"; if (e.network) online = false; else lobbyNote = e.message; }
   render();
 }
@@ -1612,8 +1654,9 @@ async function joinChallenge(code) {
   view = "home"; lobby = "searching"; joining = true; lobbyNote = ""; searchStart = Date.now(); solo = null; live = null; render();
   track("challenge_join");
   try {
-    watch((await rpc("wh_challenge_join", { p_token: token(), p_code: code })).match);
-    try { history.replaceState(null, "", location.pathname); } catch (e) { /* hash stays */ }
+    const { match } = await rpc("wh_challenge_join", { p_token: token(), p_code: code });
+    watch(match, { friend: { id: match, code, host: false } });
+    clearChallengeHash(code);
   } catch (e) { lobby = "menu"; if (e.network) online = false; else lobbyNote = e.message; render(); }
 }
 let resignArmed = 0;
@@ -1634,6 +1677,7 @@ async function askResign() {
 async function cancelSearch() {
   const search = onlineSearch;
   if (search && search.action) return;
+  if (live?.friend) clearFriendRace(live.id);
   stopPolling(); live = null;
   if (search) {
     search.action = "cancel";
@@ -1650,25 +1694,38 @@ async function cancelSearch() {
 }
 async function poll() {
   const match = live;
-  if (!match || busy || pending || onlineSearch?.action) return;
-  busy = true;
+  if (!match || match.polling || pending || onlineSearch?.action) return;
+  const previous = match.s;
+  match.polling = true;
   try {
     const s = await rpc("wh_state", { p_token: token(), p_match: match.id });
-    if (live === match && !onlineSearch?.action && s.id === match.id) applyLive(s, false);
-  } catch (e) { if (live === match && view === "play") $("msg").textContent = e.message; }
-  finally { busy = false; }
+    if (live === match && match.s === previous && !pending && !onlineSearch?.action && s.id === match.id) applyLive(s, false);
+  } catch (e) {
+    if (live !== match) return;
+    if (match.friend && /^(Match not found|Not your match|Unknown player)\b/i.test(e.message)) {
+      clearFriendRace(match.id);
+      clearChallengeHash(match.friend.code);
+      stopPolling(); live = null; view = "home"; lobby = "menu"; lobbyNote = e.message; render();
+    } else if (view === "play") $("msg").textContent = e.message;
+  } finally { match.polling = false; }
 }
 let lastPhase = "", lastFeedback = 0;
 function applyLive(s, mine) {
-  const was = live.s, before = M;
+  const was = live.s, before = M, reconnecting = live.reconnecting;
   live.s = s; live.skew = s.now - Date.now(); profile = s.me;
+  live.reconnecting = false;
+  if (live.friend) clearChallengeHash(live.friend.code);
   if (s.status === "waiting") { render(); return; }
   if (view !== "play") {
     onlineSearch = null;
-    live.fresh = -1; enterPlay(); gameT0 = Date.now();
+    live.fresh = -1; enterPlay(); gameT0 = reconnecting ? Math.min(s.starts || Date.now(), Date.now()) : Date.now();
     observe("match", { id: live.id, mode: s.rated ? "ranked" : s.opp.bot ? "bot" : "friend", target: s.target, opponent: s.opp.name, opponentBot: !!s.opp.bot });
-    track("game_start", { mode: s.rated ? "ranked" : s.opp.bot ? "bot" : "friend", target: s.target });
-    toast((s.rated ? "Rival found: " : s.opp.bot ? "Practice rival: " : "Your friend is here: ") + s.opp.name, "");
+    if (reconnecting) {
+      if (s.status === "active") toast("Reconnected to the race", "");
+    } else {
+      track("game_start", { mode: s.rated ? "ranked" : s.opp.bot ? "bot" : "friend", target: s.target });
+      toast((s.rated ? "Rival found: " : s.opp.bot ? "Practice rival: " : "Your friend is here: ") + s.opp.name, "");
+    }
   }
   const after = model();
   const newRound = !!was && (s.round || 0) > (was.round || 0);
@@ -1676,6 +1733,7 @@ function applyLive(s, mine) {
   live.fresh = !newRound && after.clues.length > (was && was.clues ? was.clues.length : 0) && grew ? after.clues.length - 1 : -1;
   if (s.status === "done") {
     if (!was || was.status !== "done") {
+      if (live.friend) clearFriendRace(live.id);
       stopPolling(); live.fresh = -1;
       const w = s.result.winner;
       track("game_end", { mode: s.rated ? "ranked" : s.opp && s.opp.bot ? "bot" : "friend", won: w === "me", result: w, target: s.target, found: s.result.found, opp_found: s.result.oppFound, ms: Date.now() - gameT0 });
@@ -1690,7 +1748,7 @@ function applyLive(s, mine) {
     const L = s.last, cty = byKey.get(L.answer);
     toast(L.ok ? "Found Pi! " + s.found + " of " + s.target : "Pi was in " + L.answerName, L.ok ? "good" : "colder"); sfx(L.ok ? "found" : "missed");
     buddy(L.ok ? "bark" : "whimper", L.ok ? "Found me! Next country." : "I was in " + L.answerName + "!");
-    $("msg").textContent = (L.ok ? "Found Pi in " : "Out of guesses. Pi was in ") + L.answerName + ". On to the next country.";
+    roundMessage((L.ok ? "Found Pi in " : "Out of guesses. Pi was in ") + L.answerName + ". On to the next country.");
     pulseKey = null; lastFeedback = Date.now();
     if (cty) flyTo(cty.center);
   } else if (mine && grew) {
@@ -1770,11 +1828,12 @@ function paintSound() { const on = !window.piSound || window.piSound.on; const b
 if (window.piSound) window.piSound.onChange(paintSound);
 
 /* ---------- First-time guide ---------- */
-let howtoSteps = [], howtoAt = 0, howtoThen = null;
-function showHowto(then, race) {
+let howtoSteps = [], howtoAt = 0, howtoThen = null, howtoOpener = null;
+function showHowto(then, race, opener = document.activeElement) {
   howtoThen = then || null;
+  howtoOpener = opener;
   howtoSteps = [...document.querySelectorAll("#howto [data-step]")].filter((el) => race || !("race" in el.dataset));
-  howtoAt = 0; paintHowto(); $("howto").hidden = false; $("howto-next").focus();
+  howtoAt = 0; paintHowto(); $("howto").showModal(); $("howto-next").focus();
 }
 function paintHowto() {
   document.querySelectorAll("#howto [data-step]").forEach((el) => { el.hidden = el !== howtoSteps[howtoAt]; });
@@ -1784,9 +1843,19 @@ function paintHowto() {
   $("howto-skip").hidden = last;
 }
 function closeHowto() {
-  $("howto").hidden = true; store.set("seen-howto", true);
-  const f = howtoThen; howtoThen = null;
-  if (f) { f(); setTimeout(() => { if (view === "play" && !M.done) { buddy("wag", "Type a country to start sniffing!"); $("guess").focus(); } }, 700); }
+  $("howto").close(); store.set("seen-howto", true);
+  const f = howtoThen, opener = howtoOpener; howtoThen = howtoOpener = null;
+  opener?.focus();
+  if (f) {
+    f();
+    const started = solo;
+    if (started && view === "play" && !M.done) {
+      $("guess").focus();
+      setTimeout(() => {
+        if (solo === started && !M.done && !M.guesses.length) buddy("wag", "Type a " + (M.kind === "city" ? "city" : "country") + " to start sniffing!");
+      }, 700);
+    }
+  }
 }
 // Runs a game start, showing the guide first if this browser has never seen it.
 function firstTime(fn, race) { if (store.get("seen-howto")) fn(); else showHowto(fn, race); }
@@ -1824,7 +1893,7 @@ function render() {
   const st = store.get("sd-stats");
   { const run = st && st.lastDay >= todayIndex() - 1 && st.streak; $("daily-sub").hidden = !run; $("daily-sub").textContent = run ? "Streak " + st.streak : ""; }
   const searchAction = onlineSearch?.action;
-  $("search-title").textContent = joining ? "Joining the match" : searchAction === "bot" ? "Starting your race" : searchAction === "cancel" ? "Cancelling search" : "Finding an opponent";
+  $("search-title").textContent = live?.reconnecting ? "Reconnecting to the match" : joining ? "Joining the match" : searchAction === "bot" ? "Starting your race" : searchAction === "cancel" ? "Cancelling search" : "Finding an opponent";
   $("search-hint").hidden = joining || !!searchAction;
   $("search-bot").hidden = joining || lobby !== "searching" || !onlineSearch;
   $("search-bot").disabled = !!searchAction;
@@ -1924,8 +1993,10 @@ function render() {
 
   // input and hint
   const blocked = M.done || out || (isLive && !M.started);
+  const place = M.kind === "city" ? "city" : "country";
   $("guess").disabled = blocked; $("go").disabled = blocked;
-  $("guess").placeholder = M.done ? "Round over" : out ? "Out of guesses. Waiting on the clock." : isLive && !M.started ? "Get ready" : M.kind === "city" ? "Where's Pi? Type a city" : "Where's Pi? Type a country";
+  $("guess").placeholder = M.done ? "Round over" : out ? "Out of guesses. Waiting on the clock." : isLive && !M.started ? "Get ready" : "Where's Pi? Type a " + place;
+  $("guess").setAttribute("aria-label", "Guess the " + place + " Pi is hiding in");
   const canHint = !isLive && !isBlitz && M.kind !== "none";
   $("hint").hidden = !canHint; $("hint").disabled = M.done || !!M.hint || !online;
   $("hint").textContent = M.hint ? "Trail used" : profile && profile.hintsFree > 0 ? "Trail hint · " + profile.hintsFree + " free" : "Trail hint · " + ((profile && profile.hintPrice) || 20) + " treats";
@@ -2043,10 +2114,18 @@ $("play-daily").addEventListener("click", () => firstTime(() => startSolo("daily
 $("play-practice").addEventListener("click", () => { lobby = "practice"; render(); });
 document.querySelectorAll("[data-count]").forEach((b) => b.addEventListener("click", () => firstTime(() => startSolo("practice", +b.dataset.count))));
 $("play-city").addEventListener("click", () => firstTime(() => startSolo("city")));
-$("open-howto").addEventListener("click", () => showHowto(null, true));
+$("open-howto").addEventListener("click", (e) => showHowto(null, true, e.currentTarget));
 $("howto-next").addEventListener("click", () => { if (howtoAt < howtoSteps.length - 1) { howtoAt++; paintHowto(); } else closeHowto(); });
 $("howto-skip").addEventListener("click", closeHowto);
-addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("howto").hidden) closeHowto(); });
+$("howto").addEventListener("cancel", (e) => { e.preventDefault(); closeHowto(); });
+$("howto").addEventListener("keydown", (e) => {
+  if (e.key === "Escape") e.stopPropagation();
+  if (e.key !== "Tab") return;
+  const next = $("howto-next"), first = $("howto-skip").hidden ? next : $("howto-skip");
+  if (document.activeElement !== (e.shiftKey ? first : next)) return;
+  e.preventDefault();
+  (e.shiftKey ? next : first).focus();
+});
 $("play-blitz").addEventListener("click", () => { lobby = "blitz"; render(); });
 document.querySelectorAll("[data-min]").forEach((b) => b.addEventListener("click", () => firstTime(() => startSolo("blitz", +b.dataset.min))));
 $("play-online").addEventListener("click", () => needProfile(() => { raceFor = "online"; lobby = "race"; render(); }));
@@ -2103,7 +2182,7 @@ document.addEventListener("click", (e) => { if (!$("menu").hidden && !e.target.c
 addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("menu").hidden) { openMenu(false); $("menu-btn").focus(); } });
 $("menu-shop").addEventListener("click", () => $("open-shop").click());
 $("menu-boards").addEventListener("click", () => { if (leavePlay()) $("open-boards").click(); });
-$("menu-howto").addEventListener("click", () => showHowto(null, true));
+$("menu-howto").addEventListener("click", () => showHowto(null, true, $("menu-btn")));
 paintSound();
 $("dock-hint").addEventListener("click", useHint);
 $("dock-clues").addEventListener("click", () => openSheet(!document.body.classList.contains("sheet")));
@@ -2133,7 +2212,7 @@ function splitAliases(s) {
 }
 function start(snap) {
   paintPi();
-  const invite = /^#c-([a-z0-9]{6,12})$/i.exec(location.hash || "");
+  const invite = challengeCode();
   fetch("shapes.json").then((r) => r.json()).then((j) => { SHAPES = j; const sh = M.clues.find((v) => v.startsWith("shape:")); if (sh) drawShape(sh); }).catch(() => {});
   fetch("world.json").then((r) => r.json()).then(async (world) => {
     const geoms = world.objects.countries.geometries.filter((g) => !SKIP.has(g.id));
@@ -2178,7 +2257,7 @@ function start(snap) {
     }
     if (recovering && session && lobby !== "mfa") { view = "home"; lobby = "newpass"; render(); }
     else if (justConfirmed && session && lobby === "menu") { lobbyNote = "Email confirmed. Welcome to Where's Pi!"; render(); }
-    if (invite && lobby !== "mfa") needProfile(() => firstTime(() => joinChallenge(invite[1]), true));
+    openFriendRace(invite);
   }).catch((e) => { track("error", { msg: "Map failed to load: " + (e && e.message), src: "start" }); $("offline").hidden = false; $("offline").textContent = "The map could not load. Reload the page to try again."; });
 }
 window.claude?.hot?.snapshot?.(() => (view === "play" && solo && !isRun(solo.mode)) ? { solo: { mode: solo.mode, day: solo.day, answer: solo.answer, guesses: solo.guesses } } : {});

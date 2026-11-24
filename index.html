@@ -54,6 +54,7 @@ body { background: var(--ink); color: var(--text); font-family: var(--font-body)
 button { font: inherit; color: inherit; cursor: pointer; }
 :focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 [hidden] { display: none !important; }
+.startup-error { max-width: 760px; margin: 14px auto 0; padding: 12px 16px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .wrap { max-width: 1280px; margin: 0 auto; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -1933,7 +1934,9 @@ function render() {
   $("who").hidden = !profile;
   $("rename").hidden = !profile; $("rename").lastChild.textContent = session ? "Account" : "Change nickname"; $("rename").firstChild.textContent = session ? "👤" : "✏️";
   if (profile) { $("who-name").textContent = profile.name; $("who-stats").textContent = "Your ranked record: " + profile.wins + " W · " + profile.losses + " L · " + profile.draws + " D"; } else $("who-stats").textContent = "";
-  $("play-online").disabled = !online; $("play-friend").disabled = !online; $("open-shop").disabled = !online; $("offline").hidden = online;
+  $("play-online").disabled = !online; $("play-friend").disabled = !online; $("open-shop").disabled = !online;
+  const offlineNotice = $("offline");
+  if (offlineNotice) offlineNotice.hidden = online;
   $("lobby-note").hidden = !lobbyNote; $("lobby-note").textContent = lobbyNote;
   $("open-account").hidden = !sb || !!session; $("open-account").disabled = !online;
   $("au-out").hidden = !!session; $("au-in").hidden = !session;
@@ -2263,7 +2266,10 @@ function start(snap) {
   paintPi();
   const invite = challengeCode();
   fetch("shapes.json").then((r) => r.json()).then((j) => { SHAPES = j; const sh = M.clues.find((v) => v.startsWith("shape:")); if (sh) drawShape(sh); }).catch(() => {});
-  fetch("world.json").then((r) => r.json()).then(async (world) => {
+  return fetch("world.json").then((r) => {
+    if (!r.ok) throw new Error("world.json returned HTTP " + r.status);
+    return r.json();
+  }).then(async (world) => {
     const geoms = world.objects.countries.geometries.filter((g) => !SKIP.has(g.id));
     landGeo = topojson.merge(world, geoms);
     borderGeo = topojson.mesh(world, { type: "GeometryCollection", geometries: geoms }, (a, b) => a !== b);
@@ -2307,7 +2313,16 @@ function start(snap) {
     if (recovering && session && lobby !== "mfa") { view = "home"; lobby = "newpass"; render(); }
     else if (justConfirmed && session && lobby === "menu") { lobbyNote = "Email confirmed. Welcome to Where's Pi!"; render(); }
     openFriendRace(invite);
-  }).catch((e) => { track("error", { msg: "Map failed to load: " + (e && e.message), src: "start" }); $("offline").hidden = false; $("offline").textContent = "The map could not load. Reload the page to try again."; });
+  }).catch((error) => {
+    const notice = document.createElement("p");
+    notice.className = "startup-error";
+    notice.setAttribute("role", "alert");
+    document.body.prepend(notice);
+    notice.textContent = "Where's Pi couldn't start. Reload the page to try again.";
+    track("error", { msg: "Startup failed: " + (error?.message || String(error)), src: "start" });
+    try { window.Sentry?.captureException(error, { tags: { stage: "startup" } }); }
+    catch { /* Reporting must not interrupt startup recovery. */ }
+  });
 }
 window.claude?.hot?.snapshot?.(() => (view === "play" && solo && !isRun(solo.mode)) ? { solo: { mode: solo.mode, day: solo.day, answer: solo.answer, guesses: solo.guesses } } : {});
 if (window.claude?.hot?.ready) window.claude.hot.ready(start); else start(window.claude?.hot?.data ?? {});

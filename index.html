@@ -493,6 +493,8 @@ body[data-live="1"] { --chrome: 268px; }
         <p class="flyer-kicker">Leaderboards</p>
         <div class="board">
           <div class="tabs" role="group" aria-label="Leaderboard"><button type="button" data-tab="ranked">Rank</button><button type="button" data-tab="today">Today</button><button type="button" data-tab="blitz3">Blitz</button></div>
+          <p class="note" id="board-status" role="status"></p>
+          <button type="button" class="link" id="board-retry" hidden>Retry leaderboard</button>
           <ol id="board"></ol>
         </div>
         <a class="link center" href="ranks.html" id="see-ranks">World and country ranks</a>
@@ -837,15 +839,23 @@ async function bearer() {
   try { const { data } = await sb.auth.getSession(); session = data.session; } catch (e) { session = null; }
   return session ? session.access_token : SB_KEY;
 }
+const retryableReads = new Set(["wh_profile", "wh_leaderboard", "wh_daily_board", "wh_blitz_board"]);
 async function rpc(fn, args) {
   let r;
   const t0 = performance.now();
-  try {
-    const auth = await bearer();
-    r = await fetch(SB_URL + "/rest/v1/rpc/" + fn, { method: "POST", headers: { apikey: SB_KEY, Authorization: "Bearer " + auth, "Content-Type": "application/json" }, body: JSON.stringify(args || {}) });
-  } catch (e) {
-    if (navigator.onLine !== false) track("api_error", { msg: "Network error calling " + fn, src: fn });
-    const err = new Error("Can't reach the game server. Check your connection."); err.network = true; throw err;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const auth = await bearer();
+      r = await fetch(SB_URL + "/rest/v1/rpc/" + fn, { method: "POST", headers: { apikey: SB_KEY, Authorization: "Bearer " + auth, "Content-Type": "application/json" }, body: JSON.stringify(args || {}) });
+      break;
+    } catch (e) {
+      if (attempt === 0 && retryableReads.has(fn) && navigator.onLine !== false) {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        if (navigator.onLine !== false) continue;
+      }
+      if (navigator.onLine !== false) track("api_error", { msg: "Network error calling " + fn, src: fn });
+      const err = new Error("Can't reach the game server. Check your connection."); err.network = true; throw err;
+    }
   }
   const j = await r.json().catch(() => null);
   if (!r.ok) {
@@ -1167,7 +1177,7 @@ function goHome() {
   view = "home"; lobby = "menu"; stopPolling(); live = null; solo = null;
   clearFeedback();
   zoomTarget = 1; spinning = !reduceMotion;
-  render(); loadBoard();
+  render();
 }
 function recordDaily(won) {
   const s = store.get("sd-stats") || { streak: 0, best: 0, lastDay: null };
@@ -1339,10 +1349,20 @@ async function submit(key) {
 /* ---------- Online: identity, boards, shop, matchmaking, challenges ---------- */
 const token = () => store.get("wh-token");
 function newToken() { const a = new Uint8Array(24); crypto.getRandomValues(a); return Array.from(a, (b) => b.toString(16).padStart(2, "0")).join(""); }
+let profileNetworkError = false;
 async function loadProfile() {
-  if (!token()) return;
-  try { profile = await rpc("wh_profile", { p_token: token() }); }
-  catch (e) { if (e.network) online = false; else profile = null; }
+  const playerToken = token();
+  if (!playerToken) return;
+  try {
+    const player = await rpc("wh_profile", { p_token: playerToken });
+    if (playerToken !== token()) return;
+    profile = player;
+    profileNetworkError = false;
+  } catch (e) {
+    if (playerToken !== token()) return;
+    profileNetworkError = !!e.network;
+    if (!profileNetworkError) profile = null;
+  }
   render();
 }
 let mfaOn = false, mfaPending = null;
@@ -1468,20 +1488,36 @@ async function mfaVerifyLogin() {
   } catch (e) { authError("mfa-err", "Can't reach the sign-in service. Check your connection."); }
 }
 const boards = { ranked: null, today: null, blitz1: null, blitz3: null, blitz5: null };
+const boardRequests = new Set();
+const boardErrors = new Set();
 let boardTab = "ranked";
-async function loadBoard(tab) {
-  tab = tab || boardTab;
-  try {
-    if (tab === "ranked") boards.ranked = await rpc("wh_leaderboard");
-    else if (tab === "today") boards.today = await rpc("wh_daily_board", { p_day: todayIndex() });
-    else boards[tab] = await rpc("wh_blitz_board", { p_minutes: +tab.slice(5) });
-  } catch (e) { if (e.network) online = false; }
+async function loadBoard(tab = boardTab) {
+  if (boardRequests.has(tab)) { render(); return; }
+  boardRequests.add(tab);
+  boardErrors.delete(tab);
   render();
+  try {
+    if (tab === "ranked") boards.ranked = (await rpc("wh_leaderboard")) ?? [];
+    else if (tab === "today") boards.today = (await rpc("wh_daily_board", { p_day: todayIndex() })) ?? [];
+    else boards[tab] = (await rpc("wh_blitz_board", { p_minutes: +tab.slice(5) })) ?? [];
+  } catch (e) {
+    boardErrors.add(tab);
+  } finally {
+    boardRequests.delete(tab);
+    render();
+  }
 }
 function paintBoard() {
   const rows = boards[boardTab], ol = $("board"); ol.textContent = "";
+  const pending = boardRequests.has(boardTab), failed = boardErrors.has(boardTab);
+  const status = $("board-status");
+  const message = failed ? (rows?.length ? "Couldn't refresh. Showing the last loaded scores." : "Couldn't load the leaderboard.") : pending && !rows ? "Loading leaderboard…" : "";
+  if (status.textContent !== message) status.textContent = message;
+  status.hidden = !message;
+  $("board-retry").hidden = !failed;
   document.querySelectorAll("[data-tab]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tab === boardTab));
-  if (!rows || !rows.length) {
+  if (!rows || (failed && !rows.length)) return;
+  if (!rows.length) {
     const li = document.createElement("li"); li.className = "none";
     li.textContent = boardTab === "ranked" ? "No ranked games yet. Be the first on the board." : boardTab === "today" ? "Nobody has found Pi today yet." : "No blitz scores yet. Set the first one.";
     ol.append(li); return;
@@ -1497,8 +1533,19 @@ async function saveName(name) {
   if (!session && !token()) store.set("wh-token", newToken());
   profile = await rpc("wh_register", { p_token: token(), p_name: name });
 }
-function needProfile(fn) {
+async function needProfile(fn) {
   if (profile) { fn(); return; }
+  if (profileNetworkError && token()) {
+    const currentLobby = lobby, currentView = view;
+    await loadProfile();
+    if (lobby !== currentLobby || view !== currentView) return;
+    if (profileNetworkError) {
+      lobbyNote = "Couldn't load your player profile. Check your connection and try again.";
+      render();
+      return;
+    }
+    if (profile) { lobbyNote = ""; fn(); return; }
+  }
   afterName = fn; lobby = "name"; view = "home"; render();
   $("nick").value = "Explorer" + (1000 + Math.floor(Math.random() * 9000)); $("nick").focus(); $("nick").select();
 }
@@ -2137,9 +2184,10 @@ document.querySelectorAll("[data-race]").forEach((b) => b.addEventListener("clic
 }));
 const leavePlay = () => { if (view === "play") goHome(); return view === "home"; };
 $("open-shop").addEventListener("click", () => { if (leavePlay()) needProfile(() => { lobby = "shop"; $("shop-note").hidden = true; render(); }); });
-$("open-boards").addEventListener("click", () => { lobby = "boards"; render(); loadBoard(); });
+$("open-boards").addEventListener("click", () => { lobby = "boards"; loadBoard(); });
+$("board-retry").addEventListener("click", () => loadBoard());
 document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", () => { lobby = "menu"; render(); }));
-document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { boardTab = b.dataset.tab; render(); loadBoard(); }));
+document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { boardTab = b.dataset.tab; loadBoard(); }));
 const editName = () => { afterName = null; lobby = "name"; render(); $("nick").value = profile ? profile.name : ""; $("nick").focus(); };
 $("rename").addEventListener("click", () => { if (!leavePlay()) return; if (session) { lobby = "account"; authError("au-err", ""); render(); } else editName(); });
 $("open-account").addEventListener("click", () => { if (!leavePlay()) return; lobby = "account"; authError("au-err", ""); render(); });
@@ -2247,7 +2295,7 @@ function start(snap) {
     resize();
     if (window.piTrack) window.piTrack.mark("MAP");
     if (authReturnError) lobbyNote = "Sign-in didn't finish: " + decodeURIComponent(authReturnError.replace(/\+/g, " "));
-    await syncAccount(); loadBoard();
+    await syncAccount();
     const coinsBack = /[?&]coins=(success|cancel)/.exec(location.search);
     if (coinsBack) {
       try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) { /* keep url */ }
